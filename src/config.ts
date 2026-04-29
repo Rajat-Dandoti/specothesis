@@ -63,6 +63,14 @@ export interface ScannerConfig {
   /** Any extra named env vars you want forwarded to scripts, keyed by var name */
   extras: Record<string, string>;
 
+  // --- Auth endpoint (optional) ---
+  /**
+   * Full URL of the login endpoint that returns a JWT.
+   * When set, toStepci prepends an Authenticate step that captures the token
+   * and injects it as "Bearer ${{captures.token}}" in all subsequent steps.
+   */
+  authUrl: string | undefined;
+
   // --- Session / profile ---
   /** Named session for this capture run (used as output folder name) */
   session: string | undefined;
@@ -87,6 +95,8 @@ export const defaultConfig: ScannerConfig = {
   password: env('SCANNER_PASSWORD'),
   authToken: env('SCANNER_AUTH_TOKEN'),
   apiKey: env('SCANNER_API_KEY'),
+
+  authUrl: env('SCANNER_AUTH_URL'),
 
   session: env('SCANNER_SESSION'),
   profile: env('SCANNER_PROFILE'),

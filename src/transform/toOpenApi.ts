@@ -177,10 +177,9 @@ export function toOpenApi(entries: HarEntry[], outDir: string): void {
   const firstUrl = new URL(entries[0].request.url);
   const serverUrl = `${firstUrl.protocol}//${firstUrl.host}`;
 
-  // Check if any entry has an Authorization header (for security scheme)
-  const hasAuth = entries.some((e) =>
-    e.request.headers.some((h) => h.name.toLowerCase() === 'authorization')
-  );
+  // Always emit bearerAuth — the tool targets JWT-authenticated APIs.
+  // The captured session may use cookies/profiles so the header won't always
+  // appear in the HAR, but the spec should always document the auth scheme.
 
   // Build OpenAPI paths object
   const paths: Record<string, unknown> = {};
@@ -221,7 +220,7 @@ export function toOpenApi(entries: HarEntry[], outDir: string): void {
       summary: `${method.toUpperCase()} ${pathTemplate}`,
       ...(parameters.length > 0 ? { parameters } : {}),
       ...(requestBody ? { requestBody } : {}),
-      ...(hasAuth ? { security: [{ bearerAuth: [] }] } : {}),
+      security: [{ bearerAuth: [] }],
       responses: {
         [String(entry.response.status)]: {
           description: entry.response.statusText || 'OK',
@@ -241,15 +240,11 @@ export function toOpenApi(entries: HarEntry[], outDir: string): void {
       version: '1.0.0',
     },
     servers: [{ url: serverUrl }],
-    ...(hasAuth
-      ? {
-          components: {
-            securitySchemes: {
-              bearerAuth: { type: 'http', scheme: 'bearer' },
-            },
-          },
-        }
-      : {}),
+    components: {
+      securitySchemes: {
+        bearerAuth: { type: 'http', scheme: 'bearer' },
+      },
+    },
     paths,
   };
 
