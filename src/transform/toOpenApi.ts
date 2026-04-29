@@ -36,47 +36,25 @@ function buildRequestBodySpec(postData: HarEntry['request']['postData']): Record
 
   const mime = postData.mimeType ?? '';
 
-  // multipart/form-data
   if (mime.toLowerCase().includes('multipart/form-data')) {
     const params = postData.params ?? [];
     if (params.length === 0) return undefined;
-
     const properties: Record<string, JsonSchema> = {};
     for (const p of params) {
-      if (p.fileName !== undefined) {
-        properties[p.name] = { type: 'string', format: 'binary' };
-      } else {
-        properties[p.name] = { type: 'string' };
-      }
+      properties[p.name] = p.fileName !== undefined
+        ? { type: 'string', format: 'binary' }
+        : { type: 'string' };
     }
-
-    return {
-      required: true,
-      content: {
-        'multipart/form-data': {
-          schema: { type: 'object', properties },
-        },
-      },
-    };
+    return { required: true, content: { 'multipart/form-data': { schema: { type: 'object', properties } } } };
   }
 
-  // application/json
   if (mime.toLowerCase().includes('application/json')) {
     const text = postData.text ?? '';
     let schema: JsonSchema = { type: 'object' };
-    try {
-      const parsed = JSON.parse(text);
-      schema = inferSchema(parsed);
-    } catch {
-      // unparseable — leave generic object
-    }
-    return {
-      required: true,
-      content: { 'application/json': { schema } },
-    };
+    try { schema = inferSchema(JSON.parse(text)); } catch { /* leave generic */ }
+    return { required: true, content: { 'application/json': { schema } } };
   }
 
-  // application/x-www-form-urlencoded
   if (mime.toLowerCase().includes('application/x-www-form-urlencoded')) {
     const params = postData.params ?? [];
     const properties: Record<string, JsonSchema> = {};
@@ -86,22 +64,11 @@ function buildRequestBodySpec(postData: HarEntry['request']['postData']): Record
       for (const [k] of new URLSearchParams(postData.text)) properties[k] = { type: 'string' };
     }
     if (Object.keys(properties).length === 0) return undefined;
-    return {
-      required: true,
-      content: {
-        'application/x-www-form-urlencoded': {
-          schema: { type: 'object', properties },
-        },
-      },
-    };
+    return { required: true, content: { 'application/x-www-form-urlencoded': { schema: { type: 'object', properties } } } };
   }
 
-  // raw body
   if (postData.text) {
-    return {
-      required: true,
-      content: { 'text/plain': { schema: { type: 'string' } } },
-    };
+    return { required: true, content: { 'text/plain': { schema: { type: 'string' } } } };
   }
 
   return undefined;
@@ -115,12 +82,11 @@ const ID_SEGMENT = /^(\d+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-
 
 function normalisePath(pathname: string): { template: string; paramNames: string[] } {
   const paramNames: string[] = [];
-  const template = pathname
-    .split('/')
+  const segments = pathname.split('/');
+  const template = segments
     .map((seg, idx) => {
       if (ID_SEGMENT.test(seg)) {
-        // derive a name from the previous segment, e.g. /users/42 → {userId}
-        const prev = pathname.split('/')[idx - 1] ?? 'item';
+        const prev = segments[idx - 1] ?? 'item';
         const name = `${prev.replace(/s$/, '')}Id`;
         paramNames.push(name);
         return `{${name}}`;
@@ -137,12 +103,87 @@ function normalisePath(pathname: string): { template: string; paramNames: string
 
 function buildResponseSchema(responseText: string | undefined): JsonSchema | undefined {
   if (!responseText) return undefined;
-  try {
-    const parsed = JSON.parse(responseText);
-    return inferSchema(parsed);
-  } catch {
-    return undefined;
-  }
+  try { return inferSchema(JSON.parse(responseText)); } catch { return undefined; }
+}
+
+// ---------------------------------------------------------------------------
+// Auth (login) operation
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse the auth URL and build a login operation for the spec.
+ * Detects the tenant segment via the /local/{tenant}/login pattern and
+ * replaces it with a {tenant} path parameter.
+ *
+ * Returns the auth server origin, the path template, and the operation object.
+ */
+function buildLoginOperation(authUrl: string): {
+  serverUrl: string;
+  pathTemplate: string;
+  operation: Record<string, unknown>;
+} | undefined {
+  let parsed: URL;
+  try { parsed = new URL(authUrl); } catch { return undefined; }
+
+  const serverUrl = `${parsed.protocol}//${parsed.host}`;
+
+  // Replace the tenant segment: /local/<tenant>/login → /local/{tenant}/login
+  const pathTemplate = parsed.pathname.replace(
+    /\/local\/([^/]+)\/login/,
+    '/local/{tenant}/login'
+  );
+
+  const operation: Record<string, unknown> = {
+    summary: 'Login — obtain a JWT',
+    description:
+      'POST your credentials to receive an `access_token`. ' +
+      'Copy the token value, click **Authorize** at the top of the page, ' +
+      'and paste it into the **bearerAuth** field (without the "Bearer " prefix — Swagger adds it automatically).',
+    tags: ['Authentication'],
+    parameters: [
+      {
+        name: 'tenant',
+        in: 'path',
+        required: true,
+        description: 'Your tenant / organisation slug (e.g. "privasapien")',
+        schema: { type: 'string' },
+      },
+    ],
+    requestBody: {
+      required: true,
+      content: {
+        'multipart/form-data': {
+          schema: {
+            type: 'object',
+            required: ['username', 'password'],
+            properties: {
+              username: { type: 'string', description: 'Your login email or username' },
+              password: { type: 'string', format: 'password' },
+            },
+          },
+        },
+      },
+    },
+    security: [],   // login endpoint does not require auth
+    responses: {
+      '200': {
+        description: 'Login successful',
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+                access_token: { type: 'string', description: 'JWT — use this as the Bearer token' },
+                message: { type: 'string', example: 'Login successful' },
+              },
+            },
+          },
+        },
+      },
+    },
+  };
+
+  return { serverUrl, pathTemplate, operation };
 }
 
 // ---------------------------------------------------------------------------
@@ -153,68 +194,57 @@ interface OperationGroup {
   method: string;
   pathTemplate: string;
   paramNames: string[];
-  entry: HarEntry; // representative entry (last seen wins)
+  entryServerUrl: string;   // origin of the actual entry URL
+  entry: HarEntry;
 }
 
-export function toOpenApi(entries: HarEntry[], outDir: string): void {
+export function toOpenApi(
+  entries: HarEntry[],
+  outDir: string,
+  baseUrl: string,
+  authUrl?: string
+): void {
+  const baseOrigin = (() => {
+    try { const u = new URL(baseUrl); return `${u.protocol}//${u.host}`; } catch { return baseUrl; }
+  })();
+
   // Group by method + normalised path; last entry wins per group
   const groups = new Map<string, OperationGroup>();
 
   for (const entry of entries) {
     const urlObj = new URL(entry.request.url);
+    const entryServerUrl = `${urlObj.protocol}//${urlObj.host}`;
     const { template, paramNames } = normalisePath(urlObj.pathname);
-    const key = `${entry.request.method.toUpperCase()}:${template}`;
+    const key = `${entry.request.method.toUpperCase()}:${entryServerUrl}:${template}`;
 
     groups.set(key, {
       method: entry.request.method.toLowerCase(),
       pathTemplate: template,
       paramNames,
+      entryServerUrl,
       entry,
     });
   }
 
-  // Determine server base URL from first entry
-  const firstUrl = new URL(entries[0].request.url);
-  const serverUrl = `${firstUrl.protocol}//${firstUrl.host}`;
-
-  // Always emit bearerAuth — the tool targets JWT-authenticated APIs.
-  // The captured session may use cookies/profiles so the header won't always
-  // appear in the HAR, but the spec should always document the auth scheme.
-
-  // Build OpenAPI paths object
+  // Build paths
   const paths: Record<string, unknown> = {};
 
-  for (const { method, pathTemplate, paramNames, entry } of groups.values()) {
+  for (const { method, pathTemplate, paramNames, entryServerUrl, entry } of groups.values()) {
     if (!paths[pathTemplate]) paths[pathTemplate] = {};
-
     const pathItem = paths[pathTemplate] as Record<string, unknown>;
 
-    // Path parameters
     const parameters: unknown[] = paramNames.map((name) => ({
-      name,
-      in: 'path',
-      required: true,
-      schema: { type: 'string' },
+      name, in: 'path', required: true, schema: { type: 'string' },
     }));
 
-    // Query parameters
     const urlObj = new URL(entry.request.url);
     for (const [k, v] of urlObj.searchParams) {
-      parameters.push({
-        name: k,
-        in: 'query',
-        required: false,
-        schema: inferSchema(v),
-        example: v,
-      });
+      parameters.push({ name: k, in: 'query', required: false, schema: inferSchema(v), example: v });
     }
 
     const requestBody = buildRequestBodySpec(entry.request.postData);
-
     const responseSchema = buildResponseSchema(entry.response.content.text);
-    const responseContent = responseSchema
-      ? { 'application/json': { schema: responseSchema } }
-      : undefined;
+    const responseContent = responseSchema ? { 'application/json': { schema: responseSchema } } : undefined;
 
     const operation: Record<string, unknown> = {
       summary: `${method.toUpperCase()} ${pathTemplate}`,
@@ -229,20 +259,41 @@ export function toOpenApi(entries: HarEntry[], outDir: string): void {
       },
     };
 
+    // Per-operation server override when this entry's host differs from the base
+    if (entryServerUrl !== baseOrigin) {
+      operation.servers = [{ url: entryServerUrl }];
+    }
+
     pathItem[method] = operation;
+  }
+
+  // Inject the login operation when authUrl is configured
+  if (authUrl) {
+    const login = buildLoginOperation(authUrl);
+    if (login) {
+      if (!paths[login.pathTemplate]) paths[login.pathTemplate] = {};
+      const pathItem = paths[login.pathTemplate] as Record<string, unknown>;
+      // Add per-path server override so Swagger routes the call to the auth server
+      (pathItem as Record<string, unknown>).servers = [{ url: login.serverUrl }];
+      pathItem.post = login.operation;
+    }
   }
 
   // Assemble spec
   const spec: Record<string, unknown> = {
     openapi: '3.0.3',
-    info: {
-      title: 'Captured API',
-      version: '1.0.0',
-    },
-    servers: [{ url: serverUrl }],
+    info: { title: 'Captured API', version: '1.0.0' },
+    servers: [{ url: baseOrigin }],
     components: {
       securitySchemes: {
-        bearerAuth: { type: 'http', scheme: 'bearer' },
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          description:
+            'JWT obtained from **POST /local/{tenant}/login**. ' +
+            'Click Authorize, paste only the token value (no "Bearer " prefix).',
+        },
       },
     },
     paths,
