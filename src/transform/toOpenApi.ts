@@ -123,7 +123,15 @@ function buildLoginOperation(authUrl: string): {
   operation: Record<string, unknown>;
 } | undefined {
   let parsed: URL;
-  try { parsed = new URL(authUrl); } catch { return undefined; }
+  try { parsed = new URL(authUrl); } catch {
+    console.warn(`  [openapi] WARNING: SCANNER_AUTH_URL is not a valid URL: "${authUrl}" — login operation skipped.`);
+    return undefined;
+  }
+
+  if (!parsed.pathname || parsed.pathname === '/') {
+    console.warn(`  [openapi] WARNING: SCANNER_AUTH_URL has no path (got "${authUrl}"). Set the full login URL, e.g. https://auth.example.com/api/v1/local/mytenant/login`);
+    return undefined;
+  }
 
   const serverUrl = `${parsed.protocol}//${parsed.host}`;
 
