@@ -209,11 +209,23 @@ interface OperationGroup {
 export function toOpenApi(
   entries: HarEntry[],
   outDir: string,
-  baseUrl: string,
+  apiUrl: string | undefined,
   authUrl?: string
 ): void {
+  // Resolve the global server origin.
+  // apiUrl (SCANNER_API_URL) is the explicit API base — use it when set.
+  // Otherwise fall back to the most frequent host in the captured entries and warn.
   const baseOrigin = (() => {
-    try { const u = new URL(baseUrl); return `${u.protocol}//${u.host}`; } catch { return baseUrl; }
+    if (apiUrl) {
+      try { const u = new URL(apiUrl); return `${u.protocol}//${u.host}`; } catch { /* fall through */ }
+    }
+    const freq = new Map<string, number>();
+    for (const e of entries) {
+      try { const u = new URL(e.request.url); const o = `${u.protocol}//${u.host}`; freq.set(o, (freq.get(o) ?? 0) + 1); } catch { /* skip */ }
+    }
+    const top = [...freq.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '';
+    console.warn(`  [openapi] WARNING: SCANNER_API_URL not set. Using most-frequent host "${top}" as spec server. Set SCANNER_API_URL to suppress this warning.`);
+    return top;
   })();
 
   // Group by method + normalised path; last entry wins per group
@@ -234,8 +246,18 @@ export function toOpenApi(
     });
   }
 
-  // Build paths
+  // Build paths — login first so it appears at the top in Swagger UI
   const paths: Record<string, unknown> = {};
+
+  if (authUrl) {
+    const login = buildLoginOperation(authUrl);
+    if (login) {
+      paths[login.pathTemplate] = {
+        servers: [{ url: login.serverUrl }],
+        post: login.operation,
+      };
+    }
+  }
 
   for (const { method, pathTemplate, paramNames, entryServerUrl, entry } of groups.values()) {
     if (!paths[pathTemplate]) paths[pathTemplate] = {};
@@ -273,18 +295,6 @@ export function toOpenApi(
     }
 
     pathItem[method] = operation;
-  }
-
-  // Inject the login operation when authUrl is configured
-  if (authUrl) {
-    const login = buildLoginOperation(authUrl);
-    if (login) {
-      if (!paths[login.pathTemplate]) paths[login.pathTemplate] = {};
-      const pathItem = paths[login.pathTemplate] as Record<string, unknown>;
-      // Add per-path server override so Swagger routes the call to the auth server
-      (pathItem as Record<string, unknown>).servers = [{ url: login.serverUrl }];
-      pathItem.post = login.operation;
-    }
   }
 
   // Assemble spec

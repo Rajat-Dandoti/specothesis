@@ -63,6 +63,15 @@ export interface ScannerConfig {
   /** Any extra named env vars you want forwarded to scripts, keyed by var name */
   extras: Record<string, string>;
 
+  // --- API server (for OpenAPI spec) ---
+  /**
+   * Base URL of the API server — used as the global `servers` entry in the
+   * generated OpenAPI spec. This is NOT the browser start URL; it is the host
+   * your API calls actually go to (e.g. https://api.example.com).
+   * If unset, the spec falls back to the most-frequent host in the HAR with a warning.
+   */
+  apiUrl: string | undefined;
+
   // --- Auth endpoint (optional) ---
   /**
    * Full URL of the login endpoint that returns a JWT.
@@ -96,6 +105,7 @@ export const defaultConfig: ScannerConfig = {
   authToken: env('SCANNER_AUTH_TOKEN'),
   apiKey: env('SCANNER_API_KEY'),
 
+  apiUrl: env('SCANNER_API_URL'),
   authUrl: env('SCANNER_AUTH_URL'),
 
   session: env('SCANNER_SESSION'),

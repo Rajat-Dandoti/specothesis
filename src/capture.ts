@@ -302,7 +302,7 @@ async function startCommand(): Promise<void> {
 
   writeFilteredHar(har, apiEntries, filteredHarPath);
 
-  toOpenApi(apiEntries, runDir, baseUrl, config.authUrl);
+  toOpenApi(apiEntries, runDir, config.apiUrl, config.authUrl);
   toStepci(apiEntries, sessionName, runDir, config.authUrl);
   toCurl(apiEntries, runDir);
 
