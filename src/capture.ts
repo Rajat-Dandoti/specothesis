@@ -3,7 +3,7 @@ import * as path from 'path';
 import { chromium } from 'playwright';
 import minimist from 'minimist';
 import { resolveConfig } from './config.js';
-import { readHar, filterApiEntries, filterByWindows, writeFilteredHar } from './utils/harFilter.js';
+import { readHar, filterApiEntries, filterByWindows, deduplicateEntries, writeFilteredHar } from './utils/harFilter.js';
 import { enrichHarEntries } from './utils/harNormalize.js';
 import { injectFormDataCapture, collectCapturedFormData, mergeFormDataIntoHar } from './utils/formDataCapture.js';
 import { toOpenApi } from './transform/toOpenApi.js';
@@ -292,6 +292,14 @@ async function startCommand(): Promise<void> {
   mergeFormDataIntoHar(apiEntries, capturedFormData);
 
   enrichHarEntries(apiEntries);
+
+  const before = apiEntries.length;
+  apiEntries = deduplicateEntries(apiEntries);
+  const dropped = before - apiEntries.length;
+  if (dropped > 0) {
+    console.log(`  Deduplicated: removed ${dropped} duplicate request(s) (${apiEntries.length} unique remain).`);
+  }
+
   writeFilteredHar(har, apiEntries, filteredHarPath);
 
   toOpenApi(apiEntries, runDir);

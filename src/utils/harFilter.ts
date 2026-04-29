@@ -116,6 +116,43 @@ export function filterByWindows(
 }
 
 /**
+ * Deduplicate entries by exact request match: method + URL + body.
+ *
+ * Body fingerprint (evaluated after enrichHarEntries so multipart params
+ * are already populated):
+ *   - params present → stable JSON of params sorted by name
+ *   - text present   → raw text
+ *   - neither        → empty string
+ *
+ * First occurrence wins; subsequent identical requests are dropped.
+ */
+export function deduplicateEntries(entries: HarEntry[]): HarEntry[] {
+  const seen = new Set<string>();
+  const result: HarEntry[] = [];
+
+  for (const entry of entries) {
+    const { method, url, postData } = entry.request;
+
+    let body = '';
+    if (postData) {
+      if (postData.params && postData.params.length > 0) {
+        const sorted = [...postData.params].sort((a, b) => a.name.localeCompare(b.name));
+        body = JSON.stringify(sorted);
+      } else {
+        body = postData.text ?? '';
+      }
+    }
+
+    const key = `${method.toUpperCase()}:${url}:${body}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(entry);
+  }
+
+  return result;
+}
+
+/**
  * Write a filtered HAR (subset of entries) to disk.
  */
 export function writeFilteredHar(har: Har, entries: HarEntry[], outPath: string): void {
