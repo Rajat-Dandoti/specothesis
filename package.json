@@ -1,0 +1,27 @@
+{
+  "name": "api-scanner",
+  "version": "1.0.0",
+  "description": "Capture API calls from Playwright journeys and export to OpenAPI + StepCI formats",
+  "type": "module",
+  "main": "dist/capture.js",
+  "scripts": {
+    "capture": "node --loader ts-node/esm src/capture.ts",
+    "login": "node --loader ts-node/esm src/capture.ts login",
+    "list": "node --loader ts-node/esm src/capture.ts list",
+    "build": "tsc",
+    "start": "node dist/capture.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "js-yaml": "^4.1.0",
+    "minimist": "^1.2.8",
+    "playwright": "^1.44.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/minimist": "^1.2.5",
+    "@types/node": "^20.12.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  }
+}
