@@ -9,6 +9,10 @@ import { injectFormDataCapture, collectCapturedFormData, mergeFormDataIntoHar } 
 import { toOpenApi } from './transform/toOpenApi.js';
 import { toStepci } from './transform/toStepci.js';
 import { toCurl } from './transform/toCurl.js';
+import { buildCoverageSummary, writeCoverageReport, printCoverageTable } from './report/coverage.js';
+import { detectAnomalies, writeAnomalyReport, printAnomalies } from './report/anomalies.js';
+import { detectDrift, loadPreviousCoverage, writeDriftReport, printDrift } from './report/drift.js';
+import { generateHtmlReport } from './report/htmlReport.js';
 import { saveProfile, getProfilePath, listProfiles, makeSessionDir, listSessions } from './session.js';
 import { startInteractiveLoop, waitForSave } from './interactive.js';
 import type { RecordingWindow } from './interactive.js';
@@ -293,18 +297,58 @@ async function startCommand(): Promise<void> {
 
   enrichHarEntries(apiEntries);
 
-  const before = apiEntries.length;
-  apiEntries = deduplicateEntries(apiEntries);
-  const dropped = before - apiEntries.length;
-  if (dropped > 0) {
-    console.log(`  Deduplicated: removed ${dropped} duplicate request(s) (${apiEntries.length} unique remain).`);
+  if (config.features.dedup) {
+    const before = apiEntries.length;
+    apiEntries = deduplicateEntries(apiEntries);
+    const dropped = before - apiEntries.length;
+    if (dropped > 0) {
+      console.log(`  Deduplicated: removed ${dropped} duplicate request(s) (${apiEntries.length} unique remain).`);
+    }
   }
 
   writeFilteredHar(har, apiEntries, filteredHarPath);
 
-  toOpenApi(apiEntries, runDir, config.apiUrl, config.authUrl);
-  toStepci(apiEntries, sessionName, runDir, config.authUrl);
-  toCurl(apiEntries, runDir);
+  if (config.features.openapi)  toOpenApi(apiEntries, runDir, config.apiUrl, config.authUrl, config.features.examples);
+  if (config.features.stepci)   toStepci(apiEntries, sessionName, runDir, config.authUrl);
+  if (config.features.curl)     toCurl(apiEntries, runDir);
+
+  // Phases 2-5 all need the summary — build it once if any reporting feature is on
+  const needsSummary = config.features.coverage || config.features.anomalies
+    || config.features.drift || config.features.htmlReport;
+  const coverageSummary = needsSummary
+    ? buildCoverageSummary(apiEntries, sessionName)
+    : null;
+
+  // Phase 2 — Coverage map
+  if (config.features.coverage && coverageSummary) {
+    writeCoverageReport(coverageSummary, runDir);
+    printCoverageTable(coverageSummary);
+  }
+
+  // Phase 3 — Anomaly detection
+  const anomalies = (config.features.anomalies && coverageSummary)
+    ? detectAnomalies(coverageSummary, apiEntries)
+    : [];
+  if (config.features.anomalies && coverageSummary) {
+    writeAnomalyReport(anomalies, runDir);
+    printAnomalies(anomalies);
+  }
+
+  // Phase 4 — Drift detection
+  let driftReport = null;
+  if (config.features.drift && coverageSummary) {
+    const previousCoverage = loadPreviousCoverage(runDir);
+    if (previousCoverage) {
+      driftReport = detectDrift(coverageSummary, previousCoverage);
+      writeDriftReport(driftReport, runDir);
+      printDrift(driftReport);
+    }
+  }
+
+  // Phase 5 — HTML report
+  if (config.features.htmlReport && coverageSummary) {
+    generateHtmlReport(coverageSummary, anomalies, driftReport, runDir);
+  }
 
   console.log(`\nDone. Outputs in:\n  ${runDir}\n`);
   console.log('Next steps:');

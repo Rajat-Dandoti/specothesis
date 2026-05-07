@@ -9,7 +9,8 @@
     "login": "node --loader ts-node/esm src/capture.ts login",
     "list": "node --loader ts-node/esm src/capture.ts list",
     "build": "tsc",
-    "start": "node dist/capture.js"
+    "start": "node dist/capture.js",
+    "schema-manifest": "node --loader ts-node/esm src/report/schemaManifestCli.ts"
   },
   "dependencies": {
     "dotenv": "^17.4.2",

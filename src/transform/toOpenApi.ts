@@ -9,20 +9,23 @@ import type { HarEntry } from '../utils/harFilter.js';
 
 type JsonSchema = Record<string, unknown>;
 
-function inferSchema(value: unknown): JsonSchema {
-  if (value === null) return { type: 'string', nullable: true };
-  if (typeof value === 'boolean') return { type: 'boolean' };
-  if (typeof value === 'number') return Number.isInteger(value) ? { type: 'integer' } : { type: 'number' };
-  if (typeof value === 'string') return { type: 'string' };
+function inferSchema(value: unknown, withExample = false): JsonSchema {
+  const ex = (v: unknown) => (withExample ? { example: v } : {});
+  if (value === null) return { type: 'string', nullable: true, ...ex(null) };
+  if (typeof value === 'boolean') return { type: 'boolean', ...ex(value) };
+  if (typeof value === 'number') return Number.isInteger(value)
+    ? { type: 'integer', ...ex(value) }
+    : { type: 'number', ...ex(value) };
+  if (typeof value === 'string') return { type: 'string', ...ex(value) };
   if (Array.isArray(value)) {
-    return { type: 'array', items: value.length > 0 ? inferSchema(value[0]) : {} };
+    return { type: 'array', items: value.length > 0 ? inferSchema(value[0], withExample) : {}, ...ex(value) };
   }
   if (typeof value === 'object') {
     const properties: Record<string, JsonSchema> = {};
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      properties[k] = inferSchema(v);
+      properties[k] = inferSchema(v, withExample);
     }
-    return { type: 'object', properties };
+    return { type: 'object', properties, ...ex(value) };
   }
   return {};
 }
@@ -31,7 +34,10 @@ function inferSchema(value: unknown): JsonSchema {
 // Request body builder
 // ---------------------------------------------------------------------------
 
-function buildRequestBodySpec(postData: HarEntry['request']['postData']): Record<string, unknown> | undefined {
+function buildRequestBodySpec(
+  postData: HarEntry['request']['postData'],
+  withExample = false
+): Record<string, unknown> | undefined {
   if (!postData) return undefined;
 
   const mime = postData.mimeType ?? '';
@@ -40,31 +46,52 @@ function buildRequestBodySpec(postData: HarEntry['request']['postData']): Record
     const params = postData.params ?? [];
     if (params.length === 0) return undefined;
     const properties: Record<string, JsonSchema> = {};
+    const exampleMap: Record<string, unknown> = {};
     for (const p of params) {
-      properties[p.name] = p.fileName !== undefined
-        ? { type: 'string', format: 'binary' }
-        : { type: 'string' };
+      if (p.fileName !== undefined) {
+        properties[p.name] = { type: 'string', format: 'binary' };
+        if (withExample) exampleMap[p.name] = `<path/to/${p.fileName}>`;
+      } else {
+        properties[p.name] = { type: 'string' };
+        if (withExample) exampleMap[p.name] = p.value ?? '';
+      }
     }
-    return { required: true, content: { 'multipart/form-data': { schema: { type: 'object', properties } } } };
+    const schema: JsonSchema = { type: 'object', properties };
+    const contentEntry: Record<string, unknown> = { schema };
+    if (withExample) contentEntry.example = exampleMap;
+    return { required: true, content: { 'multipart/form-data': contentEntry } };
   }
 
   if (mime.toLowerCase().includes('application/json')) {
     const text = postData.text ?? '';
+    let parsed: unknown;
     let schema: JsonSchema = { type: 'object' };
-    try { schema = inferSchema(JSON.parse(text)); } catch { /* leave generic */ }
-    return { required: true, content: { 'application/json': { schema } } };
+    try { parsed = JSON.parse(text); schema = inferSchema(parsed, withExample); } catch { /* leave generic */ }
+    const contentEntry: Record<string, unknown> = { schema };
+    if (withExample && parsed !== undefined) contentEntry.example = parsed;
+    return { required: true, content: { 'application/json': contentEntry } };
   }
 
   if (mime.toLowerCase().includes('application/x-www-form-urlencoded')) {
     const params = postData.params ?? [];
     const properties: Record<string, JsonSchema> = {};
+    const exampleMap: Record<string, unknown> = {};
     if (params.length > 0) {
-      for (const p of params) properties[p.name] = { type: 'string' };
+      for (const p of params) {
+        properties[p.name] = { type: 'string' };
+        if (withExample) exampleMap[p.name] = p.value ?? '';
+      }
     } else if (postData.text) {
-      for (const [k] of new URLSearchParams(postData.text)) properties[k] = { type: 'string' };
+      for (const [k, v] of new URLSearchParams(postData.text)) {
+        properties[k] = { type: 'string' };
+        if (withExample) exampleMap[k] = v;
+      }
     }
     if (Object.keys(properties).length === 0) return undefined;
-    return { required: true, content: { 'application/x-www-form-urlencoded': { schema: { type: 'object', properties } } } };
+    const schema: JsonSchema = { type: 'object', properties };
+    const contentEntry: Record<string, unknown> = { schema };
+    if (withExample && Object.keys(exampleMap).length > 0) contentEntry.example = exampleMap;
+    return { required: true, content: { 'application/x-www-form-urlencoded': contentEntry } };
   }
 
   if (postData.text) {
@@ -101,9 +128,14 @@ function normalisePath(pathname: string): { template: string; paramNames: string
 // Response body schema
 // ---------------------------------------------------------------------------
 
-function buildResponseSchema(responseText: string | undefined): JsonSchema | undefined {
+function buildResponseSchema(responseText: string | undefined, withExample = false): JsonSchema | undefined {
   if (!responseText) return undefined;
-  try { return inferSchema(JSON.parse(responseText)); } catch { return undefined; }
+  try {
+    const parsed = JSON.parse(responseText);
+    const schema = inferSchema(parsed, withExample);
+    if (withExample) schema.example = parsed;
+    return schema;
+  } catch { return undefined; }
 }
 
 // ---------------------------------------------------------------------------
@@ -210,7 +242,8 @@ export function toOpenApi(
   entries: HarEntry[],
   outDir: string,
   apiUrl: string | undefined,
-  authUrl?: string
+  authUrl?: string,
+  includeExamples = true
 ): void {
   // Resolve the global server origin.
   // apiUrl (SCANNER_API_URL) is the explicit API base — use it when set.
@@ -272,8 +305,8 @@ export function toOpenApi(
       parameters.push({ name: k, in: 'query', required: false, schema: inferSchema(v), example: v });
     }
 
-    const requestBody = buildRequestBodySpec(entry.request.postData);
-    const responseSchema = buildResponseSchema(entry.response.content.text);
+    const requestBody = buildRequestBodySpec(entry.request.postData, includeExamples);
+    const responseSchema = buildResponseSchema(entry.response.content.text, includeExamples);
     const responseContent = responseSchema ? { 'application/json': { schema: responseSchema } } : undefined;
 
     const operation: Record<string, unknown> = {

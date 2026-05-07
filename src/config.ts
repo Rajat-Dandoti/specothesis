@@ -39,6 +39,30 @@ function envBool(key: string, fallback: boolean): boolean {
 // Config shape
 // ---------------------------------------------------------------------------
 
+export interface ScannerFeatures {
+  // --- v1 outputs ---
+  /** Deduplicate repeated identical requests (method + URL + body) */
+  dedup: boolean;
+  /** Generate openapi.yaml / openapi.json */
+  openapi: boolean;
+  /** Generate stepci-workflow.yaml */
+  stepci: boolean;
+  /** Generate curls/ directory */
+  curl: boolean;
+
+  // --- v2 phases ---
+  /** Phase 1 — embed real captured values as examples in OpenAPI spec */
+  examples: boolean;
+  /** Phase 2 — write coverage.json and print coverage table */
+  coverage: boolean;
+  /** Phase 3 — write anomalies.json and print anomaly section */
+  anomalies: boolean;
+  /** Phase 4 — write drift.json and print drift section */
+  drift: boolean;
+  /** Phase 5 — write report.html */
+  htmlReport: boolean;
+}
+
 export interface ScannerConfig {
   /** Starting URL for the browser journey */
   baseUrl: string;
@@ -87,6 +111,10 @@ export interface ScannerConfig {
   profile: string | undefined;
   /** Name to save the auth profile as after a login command */
   saveProfile: string | undefined;
+
+  // --- Feature flags ---
+  /** Toggle individual outputs and post-processing steps on/off */
+  features: ScannerFeatures;
 }
 
 // ---------------------------------------------------------------------------
@@ -118,6 +146,18 @@ export const defaultConfig: ScannerConfig = {
       .filter(([k]) => k.startsWith('SCANNER_EXTRA_'))
       .map(([k, v]) => [k.replace(/^SCANNER_EXTRA_/, ''), v as string])
   ),
+
+  features: {
+    dedup:      envBool('SCANNER_ENABLE_DEDUP',        true),
+    openapi:    envBool('SCANNER_ENABLE_OPENAPI',      true),
+    stepci:     envBool('SCANNER_ENABLE_STEPCI',       true),
+    curl:       envBool('SCANNER_ENABLE_CURL',         true),
+    examples:   envBool('SCANNER_ENABLE_EXAMPLES',     true),
+    coverage:   envBool('SCANNER_ENABLE_COVERAGE',     true),
+    anomalies:  envBool('SCANNER_ENABLE_ANOMALIES',    true),
+    drift:      envBool('SCANNER_ENABLE_DRIFT',        true),
+    htmlReport: envBool('SCANNER_ENABLE_HTML_REPORT',  true),
+  },
 };
 
 /**
