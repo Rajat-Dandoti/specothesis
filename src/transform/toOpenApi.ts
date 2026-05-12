@@ -109,6 +109,28 @@ function buildRequestBodySpec(
 const ID_SEGMENT = /^(\d+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 const VERSION_SEGMENT = /^v\d+$/i;
 
+// ---------------------------------------------------------------------------
+// operationId + tag derivation
+// ---------------------------------------------------------------------------
+
+function deriveOperationId(method: string, pathTemplate: string): string {
+  const segments = pathTemplate.split('/').filter(Boolean);
+  const last = segments[segments.length - 1] ?? 'root';
+  // Strip path param braces: {userId} → userId
+  const cleaned = last.replace(/^\{(.+)\}$/, '$1');
+  // kebab-case to camelCase
+  const camel = cleaned.replace(/-([a-z])/g, (_: string, c: string) => c.toUpperCase());
+  return method.toLowerCase() + camel.charAt(0).toUpperCase() + camel.slice(1);
+}
+
+function deriveTag(pathTemplate: string): string | undefined {
+  const segments = pathTemplate.split('/').filter(Boolean);
+  // Return the first segment that isn't a version prefix, 'api', or a path parameter
+  return segments.find(
+    (s) => !VERSION_SEGMENT.test(s) && s.toLowerCase() !== 'api' && !s.startsWith('{')
+  );
+}
+
 function normalisePath(pathname: string): { template: string; paramNames: string[] } {
   const paramNames: string[] = [];
   const seen = new Map<string, number>();
@@ -256,12 +278,18 @@ export function toOpenApi(
   includeExamples: boolean,
   authCfg: LoginAuthConfig
 ): void {
-  // Resolve the global server origin.
-  // apiUrl (SCANNER_API_URL) is the explicit API base — use it when set.
-  // Otherwise fall back to the most frequent host in the captured entries and warn.
-  const baseOrigin = (() => {
+  // Resolve the server URL for the spec.
+  // baseServerUrl  — full URL used in servers[0] (preserves any base path in SCANNER_API_URL)
+  // baseOriginHost — protocol+host only, used when deciding per-operation server overrides
+  const { baseServerUrl, baseOriginHost } = (() => {
     if (apiUrl) {
-      try { const u = new URL(apiUrl); return `${u.protocol}//${u.host}`; } catch { /* fall through */ }
+      try {
+        const u = new URL(apiUrl);
+        const host = `${u.protocol}//${u.host}`;
+        const basePath = u.pathname.replace(/\/$/, '');
+        const serverUrl = basePath && basePath !== '' ? `${host}${basePath}` : host;
+        return { baseServerUrl: serverUrl, baseOriginHost: host };
+      } catch { /* fall through */ }
     }
     const freq = new Map<string, number>();
     for (const e of entries) {
@@ -269,7 +297,7 @@ export function toOpenApi(
     }
     const top = [...freq.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '';
     console.warn(`  [openapi] WARNING: SCANNER_API_URL not set. Using most-frequent host "${top}" as spec server. Set SCANNER_API_URL to suppress this warning.`);
-    return top;
+    return { baseServerUrl: top, baseOriginHost: top };
   })();
 
   // Group by method + normalised path; last entry wins per group
@@ -292,6 +320,8 @@ export function toOpenApi(
 
   // Build paths — login first so it appears at the top in Swagger UI
   const paths: Record<string, unknown> = {};
+  // Track used operationIds to deduplicate across all operations
+  const usedOperationIds = new Map<string, number>();
 
   if (authUrl) {
     const login = buildLoginOperation(authUrl, authCfg);
@@ -300,6 +330,7 @@ export function toOpenApi(
         servers: [{ url: login.serverUrl }],
         post: login.operation,
       };
+      usedOperationIds.set('postAuthenticate', 1);
     }
   }
 
@@ -320,8 +351,19 @@ export function toOpenApi(
     const responseSchema = buildResponseSchema(entry.response.content.text, includeExamples);
     const responseContent = responseSchema ? { 'application/json': { schema: responseSchema } } : undefined;
 
+    // Deduplicated operationId
+    const baseId = deriveOperationId(method, pathTemplate);
+    const count = usedOperationIds.get(baseId) ?? 0;
+    usedOperationIds.set(baseId, count + 1);
+    const operationId = count === 0 ? baseId : `${baseId}_${count + 1}`;
+
+    // Tag from first meaningful path segment
+    const tag = deriveTag(pathTemplate);
+
     const operation: Record<string, unknown> = {
+      operationId,
       summary: `${method.toUpperCase()} ${pathTemplate}`,
+      ...(tag ? { tags: [tag] } : {}),
       ...(parameters.length > 0 ? { parameters } : {}),
       ...(requestBody ? { requestBody } : {}),
       security: [{ bearerAuth: [] }],
@@ -333,8 +375,8 @@ export function toOpenApi(
       },
     };
 
-    // Per-operation server override when this entry's host differs from the base
-    if (entryServerUrl !== baseOrigin) {
+    // Per-operation server override when this entry's host differs from the configured base
+    if (entryServerUrl !== baseOriginHost) {
       operation.servers = [{ url: entryServerUrl }];
     }
 
@@ -345,7 +387,7 @@ export function toOpenApi(
   const spec: Record<string, unknown> = {
     openapi: '3.0.3',
     info: { title: 'Captured API', version: '1.0.0' },
-    servers: [{ url: baseOrigin }],
+    servers: [{ url: baseServerUrl }],
     components: {
       securitySchemes: {
         bearerAuth: {

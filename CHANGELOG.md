@@ -9,6 +9,29 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.5.0] — 2026-05-13 — Phase 3: OpenAPI Quality
+
+### Added
+
+- **`operationId`** — every operation now has a unique, auto-derived `operationId`.
+  Derived from `METHOD` + last path segment (param braces stripped, kebab converted to
+  camelCase). Collisions are resolved by appending `_2`, `_3`, etc.
+  Examples: `GET /api/v1/users/{userId}` → `getUserId`, `POST /api/v1/products` → `postProducts`.
+
+- **`tags`** — every operation is tagged with the first meaningful path segment, skipping
+  `api`, version prefixes (`v1`, `v2`, …), and path parameters.
+  Examples: `/api/v1/users/…` → `users`, `/api/v1/consent-manager/…` → `consent-manager`.
+  The login operation retains its explicit `Authentication` tag.
+
+### Fixed
+
+- **`SCANNER_API_URL` base path now preserved** — setting `SCANNER_API_URL=https://api.example.com/v2`
+  previously silently stripped the path, emitting `https://api.example.com` as the server URL.
+  The full URL (minus trailing slash) is now used. Per-operation server overrides still compare
+  on host only, so a different-host entry triggers an override as before.
+
+---
+
 ## [0.4.0] — 2026-05-13 — Phase 2: Configurable Auth System
 
 ### Added
