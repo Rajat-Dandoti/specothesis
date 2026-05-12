@@ -308,8 +308,16 @@ async function startCommand(): Promise<void> {
 
   writeFilteredHar(har, apiEntries, filteredHarPath);
 
-  if (config.features.openapi)  toOpenApi(apiEntries, runDir, config.apiUrl, config.authUrl, config.features.examples);
-  if (config.features.stepci)   toStepci(apiEntries, sessionName, runDir, config.authUrl);
+  const authCfg = {
+    authBodyFormat: config.authBodyFormat,
+    authUsernameField: config.authUsernameField,
+    authPasswordField: config.authPasswordField,
+    authTokenPath: config.authTokenPath,
+    authScheme: config.authScheme,
+  };
+
+  if (config.features.openapi)  toOpenApi(apiEntries, runDir, config.apiUrl, config.authUrl, config.features.examples, authCfg);
+  if (config.features.stepci)   toStepci(apiEntries, sessionName, runDir, config.authUrl, authCfg);
   if (config.features.curl)     toCurl(apiEntries, runDir);
 
   // Phases 2-5 all need the summary — build it once if any reporting feature is on

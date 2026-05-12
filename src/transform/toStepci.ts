@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
 import type { HarEntry } from '../utils/harFilter.js';
-import { AUTH_ENV_REFS } from '../config.js';
+import { AUTH_ENV_REFS, type AuthBodyFormat } from '../config.js';
 
 interface StepciStep {
   name: string;
@@ -65,7 +65,7 @@ const SKIP_HEADERS = new Set([
 
 function buildHeaders(
   rawHeaders: Array<{ name: string; value: string }>,
-  opts: { stripContentType?: boolean; useCaptures?: boolean } = {}
+  opts: { stripContentType?: boolean; useCaptures?: boolean; authScheme?: string } = {}
 ): Record<string, string> | undefined {
   const result: Record<string, string> = {};
 
@@ -75,11 +75,13 @@ function buildHeaders(
     if (opts.stripContentType && lower === 'content-type') continue;
 
     if (lower === 'authorization') {
-      // When a login step captures the token, reference it directly.
-      // Otherwise fall back to the static env-var reference.
-      result[name] = opts.useCaptures
-        ? 'Bearer ${{captures.token}}'
-        : (AUTH_ENV_REFS[lower] ?? value);
+      if (opts.useCaptures) {
+        // Login step captured the token — prefix it with the configured scheme.
+        const scheme = opts.authScheme?.trim() ?? 'Bearer';
+        result[name] = scheme ? scheme + ' ${{captures.token}}' : '${{captures.token}}';
+      } else {
+        result[name] = AUTH_ENV_REFS[lower] ?? value;
+      }
     } else {
       result[name] = AUTH_ENV_REFS[lower] ?? value;
     }
@@ -179,7 +181,7 @@ function buildRequestBody(postData: HarEntry['request']['postData']): {
   return postData.text ? { body: postData.text } : {};
 }
 
-function entryToStep(entry: HarEntry, useCaptures = false): StepciStep {
+function entryToStep(entry: HarEntry, useCaptures = false, authScheme?: string): StepciStep {
   const { method, url, headers: reqHeaders, postData } = entry.request;
   const { status, content } = entry.response;
 
@@ -187,7 +189,7 @@ function entryToStep(entry: HarEntry, useCaptures = false): StepciStep {
   const stepName = `${method} ${urlObj.pathname}`;
 
   const isMultipart = (postData?.mimeType ?? '').toLowerCase().includes('multipart/form-data');
-  const headers = buildHeaders(reqHeaders, { stripContentType: isMultipart, useCaptures });
+  const headers = buildHeaders(reqHeaders, { stripContentType: isMultipart, useCaptures, authScheme });
   const bodyFields = buildRequestBody(postData);
   const jsonpath = buildJsonpathChecks(content.text);
 
@@ -208,27 +210,48 @@ function entryToStep(entry: HarEntry, useCaptures = false): StepciStep {
   return step;
 }
 
+interface LoginStepConfig {
+  authBodyFormat: AuthBodyFormat;
+  authUsernameField: string;
+  authPasswordField: string;
+  authTokenPath: string;
+}
+
 /**
- * Build a login step that POSTs credentials and captures the JWT.
+ * Build a login step that POSTs credentials and captures the token.
  * Subsequent steps reference the token as ${{captures.token}}.
  */
-function buildLoginStep(authUrl: string): StepciStep {
+function buildLoginStep(authUrl: string, cfg: LoginStepConfig): StepciStep {
+  const usernameRef = '${{env.SCANNER_USERNAME}}';
+  const passwordRef = '${{env.SCANNER_PASSWORD}}';
+
+  let bodyFields: { form?: Record<string, string>; formData?: Record<string, unknown>; json?: unknown };
+
+  if (cfg.authBodyFormat === 'json') {
+    bodyFields = { json: { [cfg.authUsernameField]: usernameRef, [cfg.authPasswordField]: passwordRef } };
+  } else if (cfg.authBodyFormat === 'formData') {
+    bodyFields = { formData: { [cfg.authUsernameField]: usernameRef, [cfg.authPasswordField]: passwordRef } };
+  } else {
+    bodyFields = { form: { [cfg.authUsernameField]: usernameRef, [cfg.authPasswordField]: passwordRef } };
+  }
+
   return {
     name: 'Authenticate',
     http: {
       url: authUrl,
       method: 'POST',
-      form: {
-        username: '${{env.SCANNER_USERNAME}}',
-        password: '${{env.SCANNER_PASSWORD}}',
-      },
+      ...bodyFields,
       // @ts-expect-error — StepCI captures is valid at runtime but not in our local type
       captures: {
-        token: { jsonpath: '$.access_token' },
+        token: { jsonpath: cfg.authTokenPath },
       },
       check: { status: 200 },
     },
   };
+}
+
+interface StepciAuthConfig extends LoginStepConfig {
+  authScheme: string;
 }
 
 /**
@@ -236,13 +259,19 @@ function buildLoginStep(authUrl: string): StepciStep {
  * When authUrl is provided a login step is prepended and all Authorization headers
  * reference ${{captures.token}} instead of the static env var.
  */
-export function toStepci(entries: HarEntry[], journeyName: string, outDir: string, authUrl?: string): void {
+export function toStepci(
+  entries: HarEntry[],
+  journeyName: string,
+  outDir: string,
+  authUrl: string | undefined,
+  authCfg: StepciAuthConfig
+): void {
   const useCaptures = !!authUrl;
   const steps: StepciStep[] = [];
 
-  if (authUrl) steps.push(buildLoginStep(authUrl));
+  if (authUrl) steps.push(buildLoginStep(authUrl, authCfg));
 
-  steps.push(...entries.map((e) => entryToStep(e, useCaptures)));
+  steps.push(...entries.map((e) => entryToStep(e, useCaptures, authCfg.authScheme)));
 
   const workflow: StepciWorkflow = {
     version: '1.1',

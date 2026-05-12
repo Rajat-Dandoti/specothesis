@@ -63,6 +63,9 @@ export interface ScannerFeatures {
   htmlReport: boolean;
 }
 
+export type AuthMethod = 'bearer-login' | 'bearer-static' | 'api-key' | 'basic' | 'none';
+export type AuthBodyFormat = 'form' | 'json' | 'formData';
+
 export interface ScannerConfig {
   /** Starting URL for the browser journey */
   baseUrl: string;
@@ -100,9 +103,23 @@ export interface ScannerConfig {
   /**
    * Full URL of the login endpoint that returns a JWT.
    * When set, toStepci prepends an Authenticate step that captures the token
-   * and injects it as "Bearer ${{captures.token}}" in all subsequent steps.
+   * and injects it as "${{captures.token}}" in all subsequent steps.
    */
   authUrl: string | undefined;
+
+  // --- Auth behaviour ---
+  /** Strategy used for auth injection. Auto-set to bearer-login when authUrl is present. */
+  authMethod: AuthMethod;
+  /** Request body format sent to the login endpoint (bearer-login only). */
+  authBodyFormat: AuthBodyFormat;
+  /** Field name for the username/email in the login request body. Default: username */
+  authUsernameField: string;
+  /** Field name for the password in the login request body. Default: password */
+  authPasswordField: string;
+  /** JSONPath to extract the token from the login response. Default: $.access_token */
+  authTokenPath: string;
+  /** Value prepended before the token in the Authorization header. Default: Bearer */
+  authScheme: string;
 
   // --- Session / profile ---
   /** Named session for this capture run (used as output folder name) */
@@ -135,6 +152,18 @@ export const defaultConfig: ScannerConfig = {
 
   apiUrl: env('SCANNER_API_URL'),
   authUrl: env('SCANNER_AUTH_URL'),
+
+  // Auth behaviour — auto-derive method from authUrl when not explicitly set
+  authMethod: (() => {
+    const m = env('SCANNER_AUTH_METHOD');
+    if (m) return m as AuthMethod;
+    return env('SCANNER_AUTH_URL') ? 'bearer-login' : 'none';
+  })(),
+  authBodyFormat: (env('SCANNER_AUTH_BODY_FORMAT') ?? 'form') as AuthBodyFormat,
+  authUsernameField: env('SCANNER_AUTH_USERNAME_FIELD') ?? 'username',
+  authPasswordField: env('SCANNER_AUTH_PASSWORD_FIELD') ?? 'password',
+  authTokenPath: env('SCANNER_AUTH_TOKEN_PATH') ?? '$.access_token',
+  authScheme: env('SCANNER_AUTH_SCHEME') ?? 'Bearer',
 
   session: env('SCANNER_SESSION'),
   profile: env('SCANNER_PROFILE'),

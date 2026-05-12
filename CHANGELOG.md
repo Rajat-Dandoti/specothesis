@@ -9,6 +9,34 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.4.0] — 2026-05-13 — Phase 2: Configurable Auth System
+
+### Added
+
+- `SCANNER_AUTH_METHOD` — explicit auth strategy (`bearer-login`, `bearer-static`, `api-key`,
+  `basic`, `none`). Auto-detected as `bearer-login` when `SCANNER_AUTH_URL` is set.
+- `SCANNER_AUTH_BODY_FORMAT` — login request body format (`form` default, `json`, `formData`).
+- `SCANNER_AUTH_USERNAME_FIELD` — field name for the username in the login body (default: `username`).
+- `SCANNER_AUTH_PASSWORD_FIELD` — field name for the password in the login body (default: `password`).
+- `SCANNER_AUTH_TOKEN_PATH` — JSONPath to extract the token from the login response
+  (default: `$.access_token`). Supports any path: `$.token`, `$.data.access_token`, `$.auth.jwt`, etc.
+- `SCANNER_AUTH_SCHEME` — value prepended before the token in the Authorization header
+  (default: `Bearer`). Set to empty string for a bare token.
+
+### Changed
+
+- **`toOpenApi.ts`** — `buildLoginOperation` no longer applies the `/local/{tenant}/login`
+  Privasapien-specific regex. The auth URL path is used as-is. Request body content type, field
+  names, and response token field are all derived from the new config vars. The `bearerAuth`
+  scheme description is now generic (no hardcoded endpoint path).
+- **`toStepci.ts`** — `buildLoginStep` uses `SCANNER_AUTH_BODY_FORMAT`, field names, and token
+  path from config. `buildHeaders` uses `SCANNER_AUTH_SCHEME` when constructing the captured
+  token reference, instead of hardcoding `Bearer`.
+- **`.env.example`** — full auth section documenting all six new variables with examples for
+  each supported auth method.
+
+---
+
 ## [0.3.0] — 2026-05-12 — Phase 1: Bug Fixes
 
 ### Fixed

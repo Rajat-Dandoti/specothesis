@@ -120,6 +120,12 @@ Edit `.env` with your values. The file is gitignored — never commit it.
 | `SCANNER_USERNAME` | _(none)_ | Login username, available in scripts as `config.username` |
 | `SCANNER_PASSWORD` | _(none)_ | Login password, available as `config.password` |
 | `SCANNER_AUTH_URL` | _(none)_ | Full URL of your login endpoint — triggers a login step in StepCI and OpenAPI outputs |
+| `SCANNER_AUTH_METHOD` | auto | Auth strategy: `bearer-login`, `bearer-static`, `api-key`, `basic`, `none` |
+| `SCANNER_AUTH_BODY_FORMAT` | `form` | Login request body format: `form`, `json`, `formData` |
+| `SCANNER_AUTH_USERNAME_FIELD` | `username` | Field name for username in the login body |
+| `SCANNER_AUTH_PASSWORD_FIELD` | `password` | Field name for password in the login body |
+| `SCANNER_AUTH_TOKEN_PATH` | `$.access_token` | JSONPath to extract the token from the login response |
+| `SCANNER_AUTH_SCHEME` | `Bearer` | Prefix applied before the token in the Authorization header |
 | `SCANNER_AUTH_TOKEN` | _(none)_ | Static bearer token — written as `${{env.SCANNER_AUTH_TOKEN}}` in StepCI output |
 | `SCANNER_API_URL` | _(none)_ | API base URL used as the `servers[0].url` in the OpenAPI spec |
 | `SCANNER_API_KEY` | _(none)_ | API key — written as `${{env.SCANNER_API_KEY}}` in StepCI output |
@@ -738,13 +744,19 @@ SCANNER_PROFILE           Saved auth profile to load
 SCANNER_SCRIPT_PATH       Automation script path
 
 # Auth / credentials
-SCANNER_USERNAME          Login username
-SCANNER_PASSWORD          Login password
-SCANNER_AUTH_URL          Full login endpoint URL (enables login step in outputs)
-SCANNER_AUTH_TOKEN        Static bearer token → ${{env.SCANNER_AUTH_TOKEN}} in StepCI
-SCANNER_API_URL           API base URL → servers[0].url in OpenAPI spec
-SCANNER_API_KEY           API key → ${{env.SCANNER_API_KEY}} in StepCI
-SCANNER_EXTRA_<KEY>       Arbitrary extras → config.extras.KEY
+SCANNER_USERNAME                Login username
+SCANNER_PASSWORD                Login password
+SCANNER_AUTH_URL                Full login endpoint URL (enables login step in outputs)
+SCANNER_AUTH_METHOD             bearer-login | bearer-static | api-key | basic | none
+SCANNER_AUTH_BODY_FORMAT        form (default) | json | formData
+SCANNER_AUTH_USERNAME_FIELD     Field name for username in login body    default: username
+SCANNER_AUTH_PASSWORD_FIELD     Field name for password in login body    default: password
+SCANNER_AUTH_TOKEN_PATH         JSONPath to token in login response      default: $.access_token
+SCANNER_AUTH_SCHEME             Prefix before token in Auth header       default: Bearer
+SCANNER_AUTH_TOKEN              Static bearer token → ${{env.SCANNER_AUTH_TOKEN}} in StepCI
+SCANNER_API_URL                 API base URL → servers[0].url in OpenAPI spec
+SCANNER_API_KEY                 API key → ${{env.SCANNER_API_KEY}} in StepCI
+SCANNER_EXTRA_<KEY>             Arbitrary extras → config.extras.KEY
 
 # Feature flags (all default true)
 SCANNER_ENABLE_DEDUP          Deduplicate requests before transforms

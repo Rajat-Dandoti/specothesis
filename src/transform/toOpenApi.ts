@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
 import type { HarEntry } from '../utils/harFilter.js';
+import type { AuthBodyFormat } from '../config.js';
 
 // ---------------------------------------------------------------------------
 // Schema inference
@@ -154,14 +155,18 @@ function buildResponseSchema(responseText: string | undefined, withExample = fal
 // Auth (login) operation
 // ---------------------------------------------------------------------------
 
+interface LoginAuthConfig {
+  authBodyFormat: AuthBodyFormat;
+  authUsernameField: string;
+  authPasswordField: string;
+  authTokenPath: string;
+}
+
 /**
- * Parse the auth URL and build a login operation for the spec.
- * Detects the tenant segment via the /local/{tenant}/login pattern and
- * replaces it with a {tenant} path parameter.
- *
- * Returns the auth server origin, the path template, and the operation object.
+ * Build a login operation for the spec using the provided auth URL and config.
+ * The URL path is used as-is — no application-specific pattern matching.
  */
-function buildLoginOperation(authUrl: string): {
+function buildLoginOperation(authUrl: string, authCfg: LoginAuthConfig): {
   serverUrl: string;
   pathTemplate: string;
   operation: Record<string, unknown>;
@@ -173,50 +178,44 @@ function buildLoginOperation(authUrl: string): {
   }
 
   if (!parsed.pathname || parsed.pathname === '/') {
-    console.warn(`  [openapi] WARNING: SCANNER_AUTH_URL has no path (got "${authUrl}"). Set the full login URL, e.g. https://auth.example.com/api/v1/local/mytenant/login`);
+    console.warn(`  [openapi] WARNING: SCANNER_AUTH_URL has no path (got "${authUrl}"). Set the full login URL, e.g. https://auth.example.com/api/v1/login`);
     return undefined;
   }
 
   const serverUrl = `${parsed.protocol}//${parsed.host}`;
+  const pathTemplate = parsed.pathname;
 
-  // Replace the tenant segment: /local/<tenant>/login → /local/{tenant}/login
-  const pathTemplate = parsed.pathname.replace(
-    /\/local\/([^/]+)\/login/,
-    '/local/{tenant}/login'
-  );
+  // Derive the token field name from the JSONPath (last segment after the final dot)
+  const tokenField = authCfg.authTokenPath.split('.').pop() ?? 'token';
+
+  // Determine content type from body format
+  const fmt = authCfg.authBodyFormat;
+  const contentType =
+    fmt === 'json'     ? 'application/json' :
+    fmt === 'formData' ? 'multipart/form-data' :
+    'application/x-www-form-urlencoded';
+
+  const bodySchema = {
+    type: 'object',
+    required: [authCfg.authUsernameField, authCfg.authPasswordField],
+    properties: {
+      [authCfg.authUsernameField]: { type: 'string', description: 'Your login email or username' },
+      [authCfg.authPasswordField]: { type: 'string', format: 'password' },
+    },
+  };
 
   const operation: Record<string, unknown> = {
-    summary: 'Login — obtain a JWT',
+    summary: 'Login — obtain an access token',
     description:
-      'POST your credentials to receive an `access_token`. ' +
+      'POST your credentials to receive an access token. ' +
       'Copy the token value, click **Authorize** at the top of the page, ' +
-      'and paste it into the **bearerAuth** field (without the "Bearer " prefix — Swagger adds it automatically).',
+      'and paste it into the **bearerAuth** field.',
     tags: ['Authentication'],
-    parameters: [
-      {
-        name: 'tenant',
-        in: 'path',
-        required: true,
-        description: 'Your tenant / organisation slug (e.g. "privasapien")',
-        schema: { type: 'string' },
-      },
-    ],
     requestBody: {
       required: true,
-      content: {
-        'multipart/form-data': {
-          schema: {
-            type: 'object',
-            required: ['username', 'password'],
-            properties: {
-              username: { type: 'string', description: 'Your login email or username' },
-              password: { type: 'string', format: 'password' },
-            },
-          },
-        },
-      },
+      content: { [contentType]: { schema: bodySchema } },
     },
-    security: [],   // login endpoint does not require auth
+    security: [],
     responses: {
       '200': {
         description: 'Login successful',
@@ -225,8 +224,7 @@ function buildLoginOperation(authUrl: string): {
             schema: {
               type: 'object',
               properties: {
-                access_token: { type: 'string', description: 'JWT — use this as the Bearer token' },
-                message: { type: 'string', example: 'Login successful' },
+                [tokenField]: { type: 'string', description: 'Access token' },
               },
             },
           },
@@ -254,8 +252,9 @@ export function toOpenApi(
   entries: HarEntry[],
   outDir: string,
   apiUrl: string | undefined,
-  authUrl?: string,
-  includeExamples = true
+  authUrl: string | undefined,
+  includeExamples: boolean,
+  authCfg: LoginAuthConfig
 ): void {
   // Resolve the global server origin.
   // apiUrl (SCANNER_API_URL) is the explicit API base — use it when set.
@@ -295,7 +294,7 @@ export function toOpenApi(
   const paths: Record<string, unknown> = {};
 
   if (authUrl) {
-    const login = buildLoginOperation(authUrl);
+    const login = buildLoginOperation(authUrl, authCfg);
     if (login) {
       paths[login.pathTemplate] = {
         servers: [{ url: login.serverUrl }],
@@ -353,9 +352,9 @@ export function toOpenApi(
           type: 'http',
           scheme: 'bearer',
           bearerFormat: 'JWT',
-          description:
-            'JWT obtained from **POST /local/{tenant}/login**. ' +
-            'Click Authorize, paste only the token value (no "Bearer " prefix).',
+          description: authUrl
+            ? `Access token obtained from **POST ${new URL(authUrl).pathname}**. Click Authorize, paste only the token value (no "Bearer " prefix).`
+            : 'Bearer token. Click Authorize and paste the token value (no "Bearer " prefix).',
         },
       },
     },
