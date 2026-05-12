@@ -32,14 +32,14 @@ This is the product homepage. Someone who lands on the GitHub repo has 30 second
 Right now the tool only works if you clone the repo. For open source, the primary distribution path should be:
 
 ```sh
-npx api-scanner start --url https://example.com
+npx specothesis start --url https://example.com
 # or
-npm install -g api-scanner
-api-scanner start --url https://example.com
+npm install -g specothesis
+specothesis start --url https://example.com
 ```
 
 This requires:
-- `"bin": { "api-scanner": "./dist/capture.js" }` in `package.json`
+- `"bin": { "specothesis": "./dist/capture.js" }` in `package.json`
 - `#!/usr/bin/env node` as the first line of the compiled `dist/capture.js`
 - A `prepare` npm script that runs `tsc` before publish: `"prepare": "tsc"`
 
@@ -167,11 +167,11 @@ Add `SECURITY.md` explaining how to report vulnerabilities responsibly (not via 
 ```json
 "repository": {
   "type": "git",
-  "url": "https://github.com/<your-org>/api-scanner"
+  "url": "https://github.com/<your-org>/specothesis"
 },
 "keywords": ["api", "openapi", "playwright", "har", "testing", "stepci", "schemathesis"],
-"homepage": "https://github.com/<your-org>/api-scanner#readme",
-"bugs": { "url": "https://github.com/<your-org>/api-scanner/issues" }
+"homepage": "https://github.com/<your-org>/specothesis#readme",
+"bugs": { "url": "https://github.com/<your-org>/specothesis/issues" }
 ```
 
 This makes the package discoverable on npm and links directly to GitHub from the npm page.
@@ -213,5 +213,5 @@ ENTRYPOINT ["node", "dist/capture.js"]
 Let users point the tool at an existing HAR file (from Chrome DevTools export, Postman, mitmproxy) and run only the processing pipeline. This removes the Playwright dependency for users who already have HAR files and dramatically expands the tool's use cases.
 
 ```sh
-api-scanner replay --har path/to/export.har --session my-session
+specothesis replay --har path/to/export.har --session my-session
 ```

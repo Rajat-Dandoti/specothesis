@@ -1,5 +1,5 @@
 /**
- * Demo automation script for api-scanner.
+ * Demo automation script for Specothesis.
  *
  * Simulates a short API journey against JSONPlaceholder by navigating
  * to a simple HTML page that fires a few fetch() calls.

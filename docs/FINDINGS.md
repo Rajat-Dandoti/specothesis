@@ -1,4 +1,4 @@
-# API Scanner — Full Codebase Audit
+# Specothesis — Full Codebase Audit
 
 > Thorough findings across all source files. Organized as: what works well, actual bugs, things that should be improved, and minute details that compound over time.
 
@@ -143,11 +143,11 @@ No license means the project is technically "all rights reserved" by default in 
 
 ### No `bin` field in `package.json`
 
-The tool is currently only usable by cloning the repo and running `npm run capture`. For open-source distribution via `npm install -g api-scanner`, a `bin` field is required:
+The tool is currently only usable by cloning the repo and running `npm run capture`. For open-source distribution via `npm install -g specothesis`, a `bin` field is required:
 
 ```json
 "bin": {
-  "api-scanner": "./dist/capture.js"
+  "specothesis": "./dist/capture.js"
 }
 ```
 

@@ -31,8 +31,10 @@ const COMMAND = (argv._[0] as string | undefined) ?? 'start'; // 'login' | 'star
 
 if (argv.help || COMMAND === 'help') {
   console.log(`
+Specothesis — capture browser API traffic and generate OpenAPI, StepCI, curl, and reports.
+
 Usage:
-  npm run capture -- [command] [options]
+  specint [command] [options]
 
 Commands:
   start   (default) Capture a named session. Opens the browser; pause, resume,
@@ -71,25 +73,25 @@ Interactive controls (during  start  in manual mode):
 
 Examples:
   # Log in once and save profile
-  npm run capture -- login --url https://app.com --save-profile myapp
+  specint login --url https://app.com --save-profile myapp
 
   # Capture a feature session reusing saved auth
-  npm run capture -- start --url https://app.com --profile myapp --session product-listing
+  specint start --url https://app.com --profile myapp --session product-listing
 
   # Capture another feature (still logged in)
-  npm run capture -- start --url https://app.com/cart --profile myapp --session checkout
+  specint start --url https://app.com/cart --profile myapp --session checkout
 
   # List saved profiles and sessions
-  npm run capture -- list
+  specint list
 
   # Generate only the OpenAPI spec for this run (ignore .env feature flags)
-  npm run capture -- start --url https://app.com --only openapi
+  specint start --url https://app.com --only openapi
 
   # Generate spec + StepCI workflow only
-  npm run capture -- start --url https://app.com --only openapi,stepci
+  specint start --url https://app.com --only openapi,stepci
 
   # Generate full HTML report suite (enables coverage, anomalies, drift, html)
-  npm run capture -- start --url https://app.com --only html
+  specint start --url https://app.com --only html
 `);
   process.exit(0);
 }
@@ -198,7 +200,7 @@ async function loginCommand(): Promise<void> {
     process.exit(1);
   }
 
-  console.log(`\n=== API Scanner — Login ===`);
+  console.log(`\n=== Specothesis — Login ===`);
   console.log(`  URL:     ${baseUrl}`);
   console.log(`  Profile: ${profileName}`);
   console.log('');
@@ -252,7 +254,7 @@ async function startCommand(): Promise<void> {
   const harPath = path.join(runDir, 'raw.har');
   const filteredHarPath = path.join(runDir, 'filtered.har');
 
-  console.log(`\n=== API Scanner — Session: "${sessionName}" ===`);
+  console.log(`\n=== Specothesis — Session: "${sessionName}" ===`);
   console.log(`  URL:     ${baseUrl}`);
   console.log(`  Filter:  ${urlFilter}`);
   if (profileName) console.log(`  Profile: ${profileName}`);

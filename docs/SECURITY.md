@@ -6,7 +6,7 @@
 
 ## What the Tool Captures
 
-API Scanner captures everything your browser sends and receives during a recording session. This includes:
+Specothesis captures everything your browser sends and receives during a recording session. This includes:
 
 - **Request bodies** — JSON payloads, form fields, file uploads
 - **Response bodies** — API responses, potentially including PII or sensitive data
@@ -64,7 +64,7 @@ The tool injects a script into every page in the browser context that monkey-pat
 **Implications:**
 - The injected script runs in the page's JavaScript context. A page with strict CSP (`script-src 'self'`) may block or report the injection. The injection still works because it runs via `context.addInitScript` at the browser/CDP level, which bypasses content-level CSP, but browser console warnings may appear.
 - The script accesses `FormData.forEach()`, which reveals field names and values (but not file contents — only file names and MIME types).
-- If the app itself patches `window.fetch` before API Scanner's patch runs, the outer patch (API Scanner's) still wraps the original `_fetch` correctly because `addInitScript` runs before the page's JavaScript.
+- If the app itself patches `window.fetch` before Specothesis's patch runs, the outer patch (Specothesis's) still wraps the original `_fetch` correctly because `addInitScript` runs before the page's JavaScript.
 - The injection writes to `window.__apiScannerFd`. If the target app already uses this global name, there will be a conflict. The injection guards against re-injection (`if (window.__apiScannerFd !== undefined) return;`) but cannot handle a pre-existing global with this name.
 
 ---

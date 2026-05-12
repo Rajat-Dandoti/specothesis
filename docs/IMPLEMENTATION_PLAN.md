@@ -217,9 +217,9 @@ All 9 feature flags exist as env vars and work correctly. The gap: no CLI equiva
 ### Approach: `--only` flag
 
 ```sh
-api-scanner start --url https://app.com --only openapi,stepci
-api-scanner start --url https://app.com --only html
-api-scanner start --url https://app.com --only curl
+specint start --url https://app.com --only openapi,stepci
+specint start --url https://app.com --only html
+specint start --url https://app.com --only curl
 ```
 
 Comma-separated list of output names. Disables everything not listed. Implied deps wired (e.g. `anomalies` auto-enables `coverage` since it depends on it; `html` enables the full v2 suite).
@@ -258,7 +258,7 @@ Valid values: `openapi`, `stepci`, `curl`, `coverage`, `anomalies`, `drift`, `ht
 2. **`LICENSE`** — MIT. Two minutes.
 
 3. **`package.json` updates:**
-   - `"bin": { "api-scanner": "./dist/capture.js" }` for `npx` / global install
+   - `"bin": { "specint": "./dist/capture.js" }` for `npx` / global install
    - `"engines": { "node": ">=18.0.0" }`
    - `"files": ["dist/", "README.md", "LICENSE", ".env.example"]`
    - `"repository"`, `"keywords"`, `"homepage"`, `"bugs"` fields
@@ -291,7 +291,7 @@ Lower priority. Do after the tool is published and initial feedback comes in.
 - **`curl -s` → `curl -sS`** — show errors even in silent mode
 - **Export `normaliseCoveragePath`** — eliminate the duplicated normalization logic between `coverage.ts` and `anomalies.ts`
 - **Configurable anomaly thresholds** — `SCANNER_ANOMALY_SLOW_MS`, `SCANNER_ANOMALY_LARGE_KB`, `SCANNER_PUBLIC_PATTERNS`
-- **HAR replay mode** — `api-scanner replay --har existing.har --session name`
+- **HAR replay mode** — `specint replay --har existing.har --session name`
 - **StepCI base URL variable** — introduce `${{env.API_HOST}}` in generated workflows so environment switching doesn't require find-replace
 - **GitHub Actions CI** — typecheck on push
 

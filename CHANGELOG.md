@@ -19,7 +19,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **`CONTRIBUTING.md`** — dev setup, test capture walkthrough, how to add output formats and
   anomaly rules, PR conventions.
 - **`package.json` — `bin` field**: `api-scanner` → `./dist/capture.js` for `npx` and global
-  install (`npm install -g api-scanner`).
+  install (`npm install -g specothesis`).
 - **`package.json` — `engines`**: `node >= 18.0.0`.
 - **`package.json` — `files`**: `dist/`, `README.md`, `LICENSE`, `.env.example` — only these
   are included in the published package.
@@ -52,13 +52,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   Examples:
   ```sh
   # OpenAPI spec only
-  api-scanner start --url https://app.com --only openapi
+  specint start --url https://app.com --only openapi
 
   # Spec + StepCI workflow
-  api-scanner start --url https://app.com --only openapi,stepci
+  specint start --url https://app.com --only openapi,stepci
 
   # Full HTML report suite
-  api-scanner start --url https://app.com --only html
+  specint start --url https://app.com --only html
   ```
 
   Without `--only`, existing `SCANNER_ENABLE_*` env var behaviour is unchanged.

@@ -1,4 +1,4 @@
-# API Scanner — Usage Guide
+# Specothesis — Usage Guide
 
 A Playwright-based utility that records API traffic during a browser journey and exports it as an OpenAPI spec and a StepCI regression workflow.
 
@@ -75,8 +75,8 @@ A Playwright-based utility that records API traffic during a browser journey and
 ## 3. Installation
 
 ```bash
-git clone <repo-url> api-scanner
-cd api-scanner
+git clone <repo-url> specothesis
+cd specothesis
 npm install
 npx playwright install chromium   # downloads the browser binary, first time only
 cp .env.example .env              # fill in your values
@@ -168,13 +168,13 @@ SCANNER_URL_FILTER=**
 Opens a browser, you log in, then type `q` to save the authenticated state (cookies + localStorage) as a named profile. Run this once per app; all subsequent capture sessions can reuse the profile.
 
 ```bash
-npm run login -- --url https://your-app.com --save-profile myapp
+specint login --url https://your-app.com --save-profile myapp
 ```
 
 Or via the full command form:
 
 ```bash
-npm run capture -- login --url https://your-app.com --save-profile myapp
+specint login --url https://your-app.com --save-profile myapp
 ```
 
 What happens:
@@ -189,7 +189,7 @@ What happens:
   Profile saved: /path/to/profiles/myapp.json
 
   Use it with:
-    npm run capture -- start --url https://your-app.com --profile myapp --session <session-name>
+    specint start --url https://your-app.com --profile myapp --session <session-name>
 ```
 
 ---
@@ -201,7 +201,7 @@ Opens the browser (optionally pre-authenticated with a profile), records API cal
 **Manual journey (interactive):**
 
 ```bash
-npm run capture -- start \
+specint start \
   --url https://your-app.com \
   --profile myapp \
   --session product-listing \
@@ -213,7 +213,7 @@ The browser opens already logged in. Use the terminal controls to pause, resume,
 **Automated script:**
 
 ```bash
-npm run capture -- start \
+specint start \
   --url https://your-app.com \
   --profile myapp \
   --session checkout \
@@ -230,7 +230,7 @@ SCANNER_URL_FILTER=**/api/**
 SCANNER_PROFILE=myapp
 SCANNER_SESSION=product-listing
 
-npm run capture
+specint
 ```
 
 **Session deduplication** — if `captures/product-listing/` already exists, the new run goes into `captures/product-listing-2/`, then `captures/product-listing-3/`, etc.
@@ -240,13 +240,13 @@ npm run capture
 ### 5.3 `list` — show profiles and sessions
 
 ```bash
-npm run list
+specint list
 ```
 
 Or:
 
 ```bash
-npm run capture -- list
+specint list
 ```
 
 Output:
@@ -299,20 +299,20 @@ When running `start` in manual mode (no `--script`), recording is controlled fro
 
 ```bash
 # Step 1: Log in once
-npm run login -- --url https://your-app.com --save-profile myapp
+specint login --url https://your-app.com --save-profile myapp
 
 # Step 2: Capture feature by feature
 # — navigate to product listing, pause to skip noise, resume, stop
-npm run capture -- start --url https://your-app.com --profile myapp --session product-listing
+specint start --url https://your-app.com --profile myapp --session product-listing
 
 # — capture the checkout flow with the same logged-in state
-npm run capture -- start --url https://your-app.com/cart --profile myapp --session checkout
+specint start --url https://your-app.com/cart --profile myapp --session checkout
 
 # — capture user profile APIs
-npm run capture -- start --url https://your-app.com/settings --profile myapp --session user-profile
+specint start --url https://your-app.com/settings --profile myapp --session user-profile
 
 # Step 3: Check what's been captured
-npm run list
+specint list
 ```
 
 ### Profile refresh
@@ -320,7 +320,7 @@ npm run list
 Profiles can expire if the app uses short-lived tokens or rotating sessions. Re-run `login` with the same profile name to overwrite:
 
 ```bash
-npm run login -- --url https://your-app.com --save-profile myapp
+specint login --url https://your-app.com --save-profile myapp
 ```
 
 ### Multiple environments
@@ -328,8 +328,8 @@ npm run login -- --url https://your-app.com --save-profile myapp
 Use a different profile name per environment:
 
 ```bash
-npm run login -- --url https://staging.your-app.com --save-profile myapp-staging
-npm run login -- --url https://your-app.com         --save-profile myapp-prod
+specint login --url https://staging.your-app.com --save-profile myapp-staging
+specint login --url https://your-app.com         --save-profile myapp-prod
 ```
 
 ### Capturing the same session across days
@@ -672,7 +672,7 @@ jobs:
           SCANNER_AUTH_TOKEN: ${{ secrets.APP_AUTH_TOKEN }}
           SCANNER_HEADLESS: "true"
           SCANNER_SESSION: ci-run
-        run: npm run capture -- --script scripts/my-journey.ts
+        run: specint --script scripts/my-journey.ts
 
       - name: Run StepCI regression
         env:
@@ -703,16 +703,16 @@ jobs:
 ### Commands
 
 ```
-npm run login   -- --url <url> --save-profile <name>
-npm run capture -- [start] [options]
-npm run list
+specint login --url <url> --save-profile <name>
+specint [start] [options]
+specint list
 ```
 
-| Command | Alias | Description |
-|---|---|---|
-| `start` | _(default)_ | Capture a named session |
-| `login` | `npm run login` | Open browser, log in, save auth profile |
-| `list` | `npm run list` | Show saved profiles and recent sessions |
+| Command | Description |
+|---|---|
+| `start` | Capture a named session (default) |
+| `login` | Open browser, log in, save auth profile |
+| `list` | Show saved profiles and recent sessions |
 
 ### CLI flags
 
@@ -739,16 +739,16 @@ login:
 
 ```sh
 # Spec only — no StepCI, no curl, no reports
-npm run capture -- start --url https://app.com --only openapi
+specint start --url https://app.com --only openapi
 
 # Spec + workflow for CI
-npm run capture -- start --url https://app.com --only openapi,stepci
+specint start --url https://app.com --only openapi,stepci
 
 # Full report suite (html implies coverage + anomalies + drift)
-npm run capture -- start --url https://app.com --only html
+specint start --url https://app.com --only html
 
 # Coverage table only — no files except coverage.json
-npm run capture -- start --url https://app.com --only coverage
+specint start --url https://app.com --only coverage
 ```
 
 ### Environment variables
@@ -792,7 +792,7 @@ SCANNER_ENABLE_HTML_REPORT    report.html
 ### Project structure
 
 ```
-api-scanner/
+specothesis/
 ├── src/
 │   ├── capture.ts                  # Entry point — CLI dispatch, browser, orchestration
 │   ├── config.ts                   # Config resolution (env + CLI merge)

@@ -3,8 +3,8 @@
 ## Dev setup
 
 ```bash
-git clone <repo-url> api-scanner
-cd api-scanner
+git clone <repo-url> specothesis
+cd specothesis
 npm install
 npx playwright install chromium
 cp .env.example .env   # fill in SCANNER_BASE_URL at minimum

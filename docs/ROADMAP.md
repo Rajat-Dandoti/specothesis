@@ -39,7 +39,7 @@ Silent mode (`-s`) hides error messages too. `-sS` is silent but still prints er
 
 ### HAR replay mode
 ```sh
-api-scanner replay --har path/to/export.har --session my-session
+specint replay --har path/to/export.har --session my-session
 ```
 Process an existing HAR file through the full pipeline (filter → enrich → transform → report) without launching a browser. Unlocks use cases for:
 - Users with HAR exports from Chrome DevTools
@@ -78,7 +78,7 @@ Custom output directory instead of always writing to `captures/<session>/`. Usef
 ### Session comparison across arbitrary runs (not just consecutive)
 Current drift detection only compares against the base run (`checkout-4` compares against `checkout`, not `checkout-3`). An explicit `--compare-session <name>` flag would let users compare any two sessions:
 ```sh
-api-scanner start --session checkout-v2 --compare-session checkout-v1
+specint start --session checkout-v2 --compare-session checkout-v1
 ```
 
 ### Non-TTY / CI detection
@@ -99,7 +99,7 @@ Property-based and unit tests for the pure functions:
 Hypothesis examples already exist (`.hypothesis/`) suggesting property-based testing was explored. Formalizing these as `vitest` or `jest` tests would enable CI quality gates.
 
 ### `npx`-installable package
-Publish to npm so `npx api-scanner start --url https://example.com` works without cloning. Requires:
+Publish to npm so `npx specint start --url https://example.com` works without cloning. Requires:
 - `bin` field in `package.json`
 - Shebang on compiled entry point
 - Deciding whether Playwright is bundled or a peer dependency
@@ -109,7 +109,7 @@ Publish to npm so `npx api-scanner start --url https://example.com` works withou
 Playwright + Chromium in a container. Lets QA teams use the tool without Node.js installed:
 ```sh
 docker run --rm -v $(pwd)/captures:/app/captures \
-  ghcr.io/<org>/api-scanner start \
+  ghcr.io/<org>/specint start \
   --url https://staging.example.com \
   --session my-session
 ```
@@ -123,7 +123,7 @@ Before writing OpenAPI examples, StepCI workflows, or curl commands, run capture
 Patterns to detect: `Authorization: Bearer eyJ...`, `"password": "..."`, `"token": "..."`, `"api_key": "..."`.
 
 ### Web UI for session management
-A local `api-scanner ui` command that starts a small Express/Fastify server serving a browser UI to:
+A local `specint ui` command that starts a small Express/Fastify server serving a browser UI to:
 - Browse past sessions
 - View and compare HTML reports side-by-side
 - Manage profiles

@@ -295,10 +295,10 @@ When published to npm, these fields populate the npm package page. Without them:
 - Tools like `npm audit`, `renovate`, and `dependabot` can't find the source
 
 ```json
-"repository": { "type": "git", "url": "https://github.com/<org>/api-scanner" },
+"repository": { "type": "git", "url": "https://github.com/<org>/specothesis" },
 "keywords": ["api", "openapi", "playwright", "har", "testing", "stepci", "schemathesis", "coverage"],
-"homepage": "https://github.com/<org>/api-scanner#readme",
-"bugs": { "url": "https://github.com/<org>/api-scanner/issues" }
+"homepage": "https://github.com/<org>/specothesis#readme",
+"bugs": { "url": "https://github.com/<org>/specothesis/issues" }
 ```
 
 ---

@@ -1,6 +1,6 @@
 # Architecture
 
-> How api-scanner is structured, how data flows through it, and why the key design decisions were made.
+> How Specothesis is structured, how data flows through it, and why the key design decisions were made.
 
 ---
 

@@ -1,4 +1,4 @@
-# api-scanner
+# Specothesis
 
 Record API traffic from a real browser session and instantly get an **OpenAPI spec**, a **StepCI regression workflow**, **curl scripts**, and a full **coverage + anomaly report** — no proxy, no certificate installation, no manual spec writing.
 
@@ -8,7 +8,7 @@ Built on Playwright. Works with any web app.
 
 ## How it works
 
-1. Open a browser with `api-scanner start`
+1. Open a browser with `specint start`
 2. Click through your app (or run an automation script)
 3. Press `q` to stop — outputs are generated automatically
 
@@ -29,8 +29,8 @@ Browser (Playwright HAR recording)
 ## Install
 
 ```bash
-git clone <repo-url> api-scanner
-cd api-scanner
+git clone <repo-url> specothesis
+cd specothesis
 npm install
 npx playwright install chromium
 cp .env.example .env
@@ -44,10 +44,10 @@ Set `SCANNER_BASE_URL` in `.env` to your app's URL. Everything else has sensible
 
 ```bash
 # 1. Save your login state once (skip if your app doesn't need auth)
-npm run capture -- login --url https://your-app.com --save-profile myapp
+specint login --url https://your-app.com --save-profile myapp
 
 # 2. Capture a feature session
-npm run capture -- start \
+specint start \
   --url https://your-app.com \
   --profile myapp \
   --session checkout
@@ -84,7 +84,7 @@ Every capture run creates a folder under `captures/<session-name>/`:
 
 ## Auth configuration
 
-By default api-scanner expects a login endpoint that returns `{"access_token": "..."}` with
+By default Specothesis expects a login endpoint that returns `{"access_token": "..."}` with
 a `multipart/form-data` body containing `username` and `password`. All of this is configurable:
 
 ```bash
@@ -134,13 +134,13 @@ For one-off runs, use `--only` to override env flags without editing `.env`:
 
 ```bash
 # OpenAPI spec only
-npm run capture -- start --url https://app.com --only openapi
+specint start --url https://app.com --only openapi
 
 # Spec + StepCI workflow
-npm run capture -- start --url https://app.com --only openapi,stepci
+specint start --url https://app.com --only openapi,stepci
 
 # Full report suite (html implies coverage + anomalies + drift)
-npm run capture -- start --url https://app.com --only html
+specint start --url https://app.com --only html
 ```
 
 ---
@@ -148,10 +148,10 @@ npm run capture -- start --url https://app.com --only html
 ## Commands
 
 ```
-npm run capture -- start    Capture a session (default command)
-npm run capture -- login    Open browser, log in, save auth profile
-npm run capture -- list     Show saved profiles and recent sessions
-npm run capture -- --help   Full help and examples
+specint start    Capture a session (default command)
+specint login    Open browser, log in, save auth profile
+specint list     Show saved profiles and recent sessions
+specint --help   Full help and examples
 ```
 
 ### start options
@@ -209,7 +209,7 @@ export default async function journey(page: Page, context: BrowserContext, confi
     SCANNER_PASSWORD: ${{ secrets.APP_PASSWORD }}
     SCANNER_HEADLESS: "true"
     SCANNER_SESSION: ci-run
-  run: npm run capture -- --script scripts/my-journey.ts
+  run: specint --script scripts/my-journey.ts
 
 - name: StepCI regression
   run: stepci run captures/ci-run/stepci-workflow.yaml

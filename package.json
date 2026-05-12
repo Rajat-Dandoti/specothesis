@@ -1,11 +1,11 @@
 {
-  "name": "api-scanner",
+  "name": "specothesis",
   "version": "1.0.0",
   "description": "Capture API calls from Playwright browser sessions and export to OpenAPI, StepCI, curl, and coverage reports",
   "type": "module",
   "main": "dist/capture.js",
   "bin": {
-    "api-scanner": "./dist/capture.js"
+    "specint": "./dist/capture.js"
   },
   "engines": {
     "node": ">=18.0.0"
