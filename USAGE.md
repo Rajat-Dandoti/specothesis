@@ -102,6 +102,8 @@ Edit `.env` with your values. The file is gitignored — never commit it.
 
 ### 4.2 All variables
 
+**Capture settings**
+
 | Variable | CLI flag | Default | Description |
 |---|---|---|---|
 | `SCANNER_BASE_URL` | `--url` | _(required)_ | Starting URL opened in the browser |
@@ -110,11 +112,32 @@ Edit `.env` with your values. The file is gitignored — never commit it.
 | `SCANNER_SESSION` | `--session` | hostname slug | Session name — used as the output folder |
 | `SCANNER_PROFILE` | `--profile` | _(none)_ | Name of a saved auth profile to load |
 | `SCANNER_SCRIPT_PATH` | `--script` | _(none)_ | Path to an automation script |
-| `SCANNER_USERNAME` | — | _(none)_ | Login username, available in scripts as `config.username` |
-| `SCANNER_PASSWORD` | — | _(none)_ | Login password, available as `config.password` |
-| `SCANNER_AUTH_TOKEN` | — | _(none)_ | Bearer token — written as `${{env.SCANNER_AUTH_TOKEN}}` in StepCI output |
-| `SCANNER_API_KEY` | — | _(none)_ | API key — written as `${{env.SCANNER_API_KEY}}` in StepCI output |
-| `SCANNER_EXTRA_*` | — | _(none)_ | Any extra vars, forwarded to scripts as `config.extras.KEY` |
+
+**Auth / credentials**
+
+| Variable | Default | Description |
+|---|---|---|
+| `SCANNER_USERNAME` | _(none)_ | Login username, available in scripts as `config.username` |
+| `SCANNER_PASSWORD` | _(none)_ | Login password, available as `config.password` |
+| `SCANNER_AUTH_URL` | _(none)_ | Full URL of your login endpoint — triggers a login step in StepCI and OpenAPI outputs |
+| `SCANNER_AUTH_TOKEN` | _(none)_ | Static bearer token — written as `${{env.SCANNER_AUTH_TOKEN}}` in StepCI output |
+| `SCANNER_API_URL` | _(none)_ | API base URL used as the `servers[0].url` in the OpenAPI spec |
+| `SCANNER_API_KEY` | _(none)_ | API key — written as `${{env.SCANNER_API_KEY}}` in StepCI output |
+| `SCANNER_EXTRA_*` | _(none)_ | Any extra vars, forwarded to scripts as `config.extras.KEY` |
+
+**Feature flags** — all default to `true`; set to `false` to disable
+
+| Variable | Controls |
+|---|---|
+| `SCANNER_ENABLE_DEDUP` | Deduplicate captured requests before generating outputs |
+| `SCANNER_ENABLE_OPENAPI` | Generate `openapi.yaml` / `openapi.json` |
+| `SCANNER_ENABLE_STEPCI` | Generate `stepci-workflow.yaml` |
+| `SCANNER_ENABLE_CURL` | Generate `curls/*.sh` |
+| `SCANNER_ENABLE_EXAMPLES` | Include captured values as examples in the OpenAPI spec |
+| `SCANNER_ENABLE_COVERAGE` | Generate `coverage.json` and print the coverage table |
+| `SCANNER_ENABLE_ANOMALIES` | Generate `anomalies.json` |
+| `SCANNER_ENABLE_DRIFT` | Generate `drift.json` |
+| `SCANNER_ENABLE_HTML_REPORT` | Generate `report.html` |
 
 ### 4.3 URL filter tips
 
@@ -328,23 +351,69 @@ Each session run creates a directory under `captures/`:
 ```
 captures/
 └── <session-name>/
-    ├── raw.har                 # Full unmodified HAR — everything the browser saw
-    ├── filtered.har            # API-only entries within recording windows
-    ├── openapi.json            # OpenAPI 3.0 spec (JSON)
-    ├── openapi.yaml            # OpenAPI 3.0 spec (YAML)
-    ├── stepci-workflow.yaml    # StepCI regression workflow
+    ├── raw.har                     # Full unmodified HAR — everything the browser saw
+    ├── filtered.har                # API-only entries within recording windows
+    ├── openapi.json                # OpenAPI 3.0 spec (JSON)
+    ├── openapi.yaml                # OpenAPI 3.0 spec (YAML)
+    ├── stepci-workflow.yaml        # StepCI regression workflow
+    ├── coverage.json               # Per-endpoint stats (status codes, timings, auth)
+    ├── anomalies.json              # Flagged issues: errors, missing auth, slow/large responses
+    ├── drift.json                  # Endpoint changes vs the baseline run
+    ├── report.html                 # Self-contained HTML report (coverage + anomalies + drift)
     └── curls/
-        ├── requests.sh         # All curl commands in one file
+        ├── requests.sh             # All curl commands in one file
         ├── 001_POST_api_login.sh
         ├── 002_GET_api_products.sh
-        └── ...                 # One .sh per captured request
+        └── ...                     # One .sh per captured request
 ```
 
 `raw.har` is always preserved intact — it is the source of truth. You can reprocess it manually if you need to change the filter or widen the URL glob.
 
 **Multipart/form-data** — request bodies are fully parsed from the raw boundary format and represented in the spec as `multipart/form-data` with proper field schemas. File upload fields are typed as `{ type: string, format: binary }`.
 
-**Header policy** — all headers are stripped from curl and StepCI outputs. Only `Authorization` is kept, with its value replaced by `$SCANNER_AUTH_TOKEN`. This avoids leaking session tokens and boundary strings into committed files.
+**Header policy** — only `Authorization` is included in curl and StepCI outputs, with its value replaced by `$SCANNER_AUTH_TOKEN`. All other headers (including `origin`, `referer`, `user-agent`, cookies, transport headers) are stripped to avoid leaking environment-specific values into committed files.
+
+### Coverage report
+
+`coverage.json` aggregates every captured endpoint into a summary:
+
+```json
+{
+  "GET /api/products": {
+    "callCount": 3,
+    "statusCodes": [200],
+    "hasAuth": true,
+    "avgResponseTimeMs": 142,
+    "avgRequestSizeBytes": 0,
+    "avgResponseSizeBytes": 4210
+  }
+}
+```
+
+### Anomaly report
+
+`anomalies.json` flags issues detected across the captured endpoints. Six built-in rules:
+
+| Rule | Severity | Triggers when |
+|---|---|---|
+| `client-error` | warn | Any 4xx response was seen |
+| `server-error` | warn | Any 5xx response was seen |
+| `missing-auth` | warn | No `Authorization` header on a non-public endpoint |
+| `slow-response` | info | Average response time > 2 000 ms |
+| `large-response` | info | Average response size > 1 MB |
+| `repeated-calls` | info | Same endpoint called 10+ times |
+
+### Drift report
+
+`drift.json` compares the current session against the baseline (the first unnumbered run of that session name). It reports:
+
+- **Added endpoints** — present now, absent in baseline
+- **Removed endpoints** — in baseline, absent now
+- **Changed endpoints** — status codes changed, or auth requirement flipped
+
+### HTML report
+
+`report.html` is a self-contained file (inline CSS + JS, no external dependencies) that combines the coverage table, anomaly list, and drift summary into a single dark-themed page. Safe to email, commit, or open offline.
 
 ---
 
@@ -660,18 +729,33 @@ login:
 ### Environment variables
 
 ```
-SCANNER_BASE_URL        Start URL
-SCANNER_URL_FILTER      Capture filter glob        default: **/api/**
-SCANNER_HEADLESS        true / false               default: false
-SCANNER_SESSION         Session name / output folder
-SCANNER_PROFILE         Saved auth profile to load
-SCANNER_SCRIPT_PATH     Automation script path
+# Capture
+SCANNER_BASE_URL          Start URL
+SCANNER_URL_FILTER        Capture filter glob        default: **/api/**
+SCANNER_HEADLESS          true / false               default: false
+SCANNER_SESSION           Session name / output folder
+SCANNER_PROFILE           Saved auth profile to load
+SCANNER_SCRIPT_PATH       Automation script path
 
-SCANNER_USERNAME        Login username
-SCANNER_PASSWORD        Login password
-SCANNER_AUTH_TOKEN      Bearer token → ${{env.SCANNER_AUTH_TOKEN}} in StepCI
-SCANNER_API_KEY         API key      → ${{env.SCANNER_API_KEY}} in StepCI
-SCANNER_EXTRA_<KEY>     Arbitrary extras → config.extras.KEY
+# Auth / credentials
+SCANNER_USERNAME          Login username
+SCANNER_PASSWORD          Login password
+SCANNER_AUTH_URL          Full login endpoint URL (enables login step in outputs)
+SCANNER_AUTH_TOKEN        Static bearer token → ${{env.SCANNER_AUTH_TOKEN}} in StepCI
+SCANNER_API_URL           API base URL → servers[0].url in OpenAPI spec
+SCANNER_API_KEY           API key → ${{env.SCANNER_API_KEY}} in StepCI
+SCANNER_EXTRA_<KEY>       Arbitrary extras → config.extras.KEY
+
+# Feature flags (all default true)
+SCANNER_ENABLE_DEDUP          Deduplicate requests before transforms
+SCANNER_ENABLE_OPENAPI        openapi.yaml / openapi.json
+SCANNER_ENABLE_STEPCI         stepci-workflow.yaml
+SCANNER_ENABLE_CURL           curls/*.sh
+SCANNER_ENABLE_EXAMPLES       Example values in OpenAPI spec
+SCANNER_ENABLE_COVERAGE       coverage.json + terminal table
+SCANNER_ENABLE_ANOMALIES      anomalies.json
+SCANNER_ENABLE_DRIFT          drift.json
+SCANNER_ENABLE_HTML_REPORT    report.html
 ```
 
 ### Project structure
@@ -679,34 +763,47 @@ SCANNER_EXTRA_<KEY>     Arbitrary extras → config.extras.KEY
 ```
 api-scanner/
 ├── src/
-│   ├── capture.ts              # Entry point — CLI dispatch, browser, orchestration
-│   ├── config.ts               # Config resolution (env + CLI merge)
-│   ├── session.ts              # Profile save/load, session dir naming
-│   ├── interactive.ts          # Pause / resume / stop terminal loop
+│   ├── capture.ts                  # Entry point — CLI dispatch, browser, orchestration
+│   ├── config.ts                   # Config resolution (env + CLI merge)
+│   ├── session.ts                  # Profile save/load, session dir naming
+│   ├── interactive.ts              # Pause / resume / stop terminal loop
 │   ├── transform/
-│   │   ├── toOpenApi.ts        # HAR entries → OpenAPI 3.0 spec (own generator)
-│   │   ├── toStepci.ts         # HAR entries → StepCI YAML workflow
-│   │   └── toCurl.ts           # HAR entries → curl .sh files (Authorization only)
+│   │   ├── toOpenApi.ts            # HAR entries → OpenAPI 3.0 spec
+│   │   ├── toStepci.ts             # HAR entries → StepCI YAML workflow
+│   │   └── toCurl.ts               # HAR entries → curl .sh files
+│   ├── report/
+│   │   ├── coverage.ts             # Per-endpoint aggregation + terminal table
+│   │   ├── anomalies.ts            # Six-rule anomaly detector
+│   │   ├── drift.ts                # Baseline comparison
+│   │   ├── htmlReport.ts           # Self-contained HTML report generator
+│   │   ├── schemaManifest.ts       # Schemathesis JUnit XML → structured JSON
+│   │   └── schemaManifestCli.ts    # CLI entry for schemathesis report
 │   └── utils/
-│       ├── harFilter.ts        # HAR parsing, API-entry filtering, window filtering
-│       ├── harNormalize.ts     # Multipart boundary parser, enrichHarEntries
-│       └── formDataCapture.ts  # JS FormData intercept for file upload bodies
+│       ├── harFilter.ts            # HAR parsing, API-entry filtering, window filtering
+│       ├── harNormalize.ts         # Multipart boundary parser, enrichHarEntries
+│       └── formDataCapture.ts      # JS FormData intercept for file upload bodies
 ├── scripts/
-│   ├── demo-journey.ts         # Example automation script (JSONPlaceholder)
-│   └── demo-multipart.ts       # Example script with multipart uploads
-├── captures/                   # Generated at runtime (gitignored)
-│   └── <session-name>/         # One folder per named session run
+│   ├── demo-journey.ts             # Example automation script (JSONPlaceholder)
+│   └── demo-multipart.ts           # Example script with multipart uploads
+├── docs/                           # Audit findings, internals, roadmap, security
+├── captures/                       # Generated at runtime (gitignored)
+│   └── <session-name>/
 │       ├── raw.har
 │       ├── filtered.har
-│       ├── openapi.json
-│       ├── openapi.yaml
-│       └── stepci-workflow.yaml
-├── profiles/                   # Saved auth states (gitignored)
+│       ├── openapi.json / openapi.yaml
+│       ├── stepci-workflow.yaml
+│       ├── coverage.json
+│       ├── anomalies.json
+│       ├── drift.json
+│       ├── report.html
+│       └── curls/
+├── profiles/                       # Saved auth states (gitignored)
 │   └── <profile-name>.json
-├── .env.example                # Config template — copy to .env
-├── .env                        # Your values (gitignored)
-├── .gitignore
+├── ARCHITECTURE.md                 # System architecture and pipeline diagram
+├── CHANGELOG.md                    # Version history
+├── USAGE.md                        # This file
+├── .env.example                    # Config template — copy to .env
+├── .env                            # Your values (gitignored)
 ├── package.json
-├── tsconfig.json
-└── plan.md
+└── tsconfig.json
 ```
