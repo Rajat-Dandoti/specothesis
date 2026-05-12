@@ -4,6 +4,8 @@ Record API traffic from a real browser session and instantly get an **OpenAPI sp
 
 Built on Playwright. Works with any web app.
 
+> Conceived and directed by [Rajat Dandoti](https://github.com/Rajat-Dandoti). Built through AI-assisted development with [Claude](https://claude.ai).
+
 ---
 
 ## How it works
