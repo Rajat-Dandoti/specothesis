@@ -1,14 +1,39 @@
 {
   "name": "api-scanner",
   "version": "1.0.0",
-  "description": "Capture API calls from Playwright journeys and export to OpenAPI + StepCI formats",
+  "description": "Capture API calls from Playwright browser sessions and export to OpenAPI, StepCI, curl, and coverage reports",
   "type": "module",
   "main": "dist/capture.js",
+  "bin": {
+    "api-scanner": "./dist/capture.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE",
+    ".env.example"
+  ],
+  "keywords": [
+    "api",
+    "openapi",
+    "swagger",
+    "playwright",
+    "har",
+    "stepci",
+    "testing",
+    "api-testing",
+    "schemathesis",
+    "coverage",
+    "rest"
+  ],
   "scripts": {
     "capture": "node --loader ts-node/esm src/capture.ts",
     "login": "node --loader ts-node/esm src/capture.ts login",
     "list": "node --loader ts-node/esm src/capture.ts list",
-    "build": "tsc",
+    "build": "tsc && node scripts/postbuild.mjs",
     "start": "node dist/capture.js",
     "schema-manifest": "node --loader ts-node/esm src/report/schemaManifestCli.ts"
   },

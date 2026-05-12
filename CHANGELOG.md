@@ -9,6 +9,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.0.0] — 2026-05-13 — Phase 5: OSS Preparation
+
+### Added
+
+- **`README.md`** — public-facing homepage: quickstart, output file table, auth configuration
+  guide, feature flags, CI example, links to USAGE.md and ARCHITECTURE.md.
+- **`LICENSE`** — MIT license.
+- **`CONTRIBUTING.md`** — dev setup, test capture walkthrough, how to add output formats and
+  anomaly rules, PR conventions.
+- **`package.json` — `bin` field**: `api-scanner` → `./dist/capture.js` for `npx` and global
+  install (`npm install -g api-scanner`).
+- **`package.json` — `engines`**: `node >= 18.0.0`.
+- **`package.json` — `files`**: `dist/`, `README.md`, `LICENSE`, `.env.example` — only these
+  are included in the published package.
+- **`package.json` — `keywords`**: api, openapi, swagger, playwright, har, stepci, testing,
+  api-testing, schemathesis, coverage, rest.
+- **`scripts/postbuild.mjs`**: wired as `postbuild` step — injects `#!/usr/bin/env node`
+  shebang into `dist/capture.js` and sets `chmod 755` so the binary is directly executable.
+
+---
+
 ## [0.6.0] — 2026-05-13 — Phase 4: --only flag
 
 ### Added
