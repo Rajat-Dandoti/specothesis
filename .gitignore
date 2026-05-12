@@ -3,3 +3,21 @@ dist/
 captures/
 profiles/
 .env
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Python virtualenv (for schemathesis)
+.venv/
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# Editor
+.vscode/
+.idea/
+
+# Dev scratchpads
+PLAN_V2.md
+plan.md
