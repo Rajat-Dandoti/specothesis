@@ -78,7 +78,7 @@ A Playwright-based utility that records API traffic during a browser journey and
 ## 3. Installation
 
 ```bash
-git clone <repo-url> specothesis
+git clone https://github.com/Rajat-Dandoti/specothesis.git specothesis
 cd specothesis
 npm install
 npx playwright install chromium   # downloads the browser binary, first time only

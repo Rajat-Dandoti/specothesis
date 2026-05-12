@@ -41,14 +41,14 @@ npx playwright install chromium   # install the browser — required even if Pla
 
 Then copy the example config to your project directory:
 ```bash
-curl -O https://raw.githubusercontent.com/rajatdandoti/specothesis/main/.env.example
+curl -O https://raw.githubusercontent.com/Rajat-Dandoti/specothesis/main/.env.example
 mv .env.example .env
 # set SCANNER_BASE_URL in .env
 ```
 
 **From source:**
 ```bash
-git clone <repo-url> specothesis
+git clone https://github.com/Rajat-Dandoti/specothesis.git specothesis
 cd specothesis
 npm install
 npx playwright install chromium

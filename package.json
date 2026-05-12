@@ -16,6 +16,14 @@
     "LICENSE",
     ".env.example"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Rajat-Dandoti/specothesis.git"
+  },
+  "homepage": "https://github.com/Rajat-Dandoti/specothesis#readme",
+  "bugs": {
+    "url": "https://github.com/Rajat-Dandoti/specothesis/issues"
+  },
   "keywords": [
     "api",
     "openapi",

@@ -3,7 +3,7 @@
 ## Dev setup
 
 ```bash
-git clone <repo-url> specothesis
+git clone https://github.com/Rajat-Dandoti/specothesis.git specothesis
 cd specothesis
 npm install
 npx playwright install chromium   # downloads the Chromium binary — required, safe to re-run
