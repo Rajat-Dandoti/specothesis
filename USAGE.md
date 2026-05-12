@@ -2,6 +2,9 @@
 
 A Playwright-based utility that records API traffic during a browser journey and exports it as an OpenAPI spec and a StepCI regression workflow.
 
+> **Running locally from source?** Replace `specint` with `npm run capture --` in all examples below.
+> e.g. `specint start --url ...` → `npm run capture -- start --url ...`
+
 ---
 
 ## Table of Contents
