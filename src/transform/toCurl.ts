@@ -41,8 +41,7 @@ function bodyFlags(postData: HarEntry['request']['postData']): string[] {
   if (mime.toLowerCase().includes('application/x-www-form-urlencoded')) {
     const params = postData.params ?? [];
     if (params.length > 0) {
-      const encoded = params.map((p) => `${encodeURIComponent(p.name)}=${encodeURIComponent(p.value ?? '')}`).join('&');
-      return [`--data-urlencode ${shellQuote(encoded)}`];
+      return params.map((p) => `--data-urlencode ${shellQuote(`${p.name}=${p.value ?? ''}`)}`);
     }
     if (postData.text) return [`-d ${shellQuote(postData.text)}`];
     return [];

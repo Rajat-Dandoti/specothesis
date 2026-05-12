@@ -57,6 +57,10 @@ const SKIP_HEADERS = new Set([
   'sec-fetch-dest',
   'sec-fetch-mode',
   'sec-fetch-site',
+  // Browser fingerprint / environment-specific
+  'origin',
+  'referer',
+  'user-agent',
 ]);
 
 function buildHeaders(

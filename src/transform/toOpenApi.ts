@@ -106,15 +106,27 @@ function buildRequestBodySpec(
 // ---------------------------------------------------------------------------
 
 const ID_SEGMENT = /^(\d+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+const VERSION_SEGMENT = /^v\d+$/i;
 
 function normalisePath(pathname: string): { template: string; paramNames: string[] } {
   const paramNames: string[] = [];
+  const seen = new Map<string, number>();
   const segments = pathname.split('/');
   const template = segments
     .map((seg, idx) => {
       if (ID_SEGMENT.test(seg)) {
-        const prev = segments[idx - 1] ?? 'item';
-        const name = `${prev.replace(/s$/, '')}Id`;
+        // Walk back to find the nearest non-version, non-empty segment for the param name
+        let prev = 'item';
+        for (let i = idx - 1; i >= 0; i--) {
+          if (segments[i] && !VERSION_SEGMENT.test(segments[i])) {
+            prev = segments[i];
+            break;
+          }
+        }
+        const base = `${prev.replace(/s$/, '')}Id`;
+        const count = seen.get(base) ?? 0;
+        seen.set(base, count + 1);
+        const name = count === 0 ? base : `${base}_${count + 1}`;
         paramNames.push(name);
         return `{${name}}`;
       }
