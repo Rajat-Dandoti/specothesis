@@ -6,8 +6,8 @@
 git clone <repo-url> specothesis
 cd specothesis
 npm install
-npx playwright install chromium
-cp .env.example .env   # fill in SCANNER_BASE_URL at minimum
+npx playwright install chromium   # downloads the Chromium binary — required, safe to re-run
+cp .env.example .env              # fill in SCANNER_BASE_URL at minimum
 ```
 
 Run a test capture (against JSONPlaceholder — no auth needed):

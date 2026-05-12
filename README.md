@@ -28,12 +28,32 @@ Browser (Playwright HAR recording)
 
 ## Install
 
+**From npm (recommended):**
+```bash
+npm install -g specothesis
+npx playwright install chromium   # install the browser — required even if Playwright is already installed
+```
+
+> Playwright ships without browsers by default. `npx playwright install chromium` downloads
+> the Chromium binary that Specothesis uses to record traffic. If you already have Playwright
+> installed for another project, you may already have Chromium — but running this command is
+> safe to re-run and will no-op if it's already present.
+
+Then copy the example config to your project directory:
+```bash
+curl -O https://raw.githubusercontent.com/rajatdandoti/specothesis/main/.env.example
+mv .env.example .env
+# set SCANNER_BASE_URL in .env
+```
+
+**From source:**
 ```bash
 git clone <repo-url> specothesis
 cd specothesis
 npm install
 npx playwright install chromium
 cp .env.example .env
+npm run build   # produces dist/ and makes specint available via npm link
 ```
 
 Set `SCANNER_BASE_URL` in `.env` to your app's URL. Everything else has sensible defaults.
