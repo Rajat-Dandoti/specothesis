@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { chromium } from 'playwright';
 import minimist from 'minimist';
-import { resolveConfig } from './config.js';
+import { resolveConfig, type ScannerConfig, type ScannerFeatures } from './config.js';
 import { readHar, filterApiEntries, filterByWindows, deduplicateEntries, writeFilteredHar } from './utils/harFilter.js';
 import { enrichHarEntries } from './utils/harNormalize.js';
 import { injectFormDataCapture, collectCapturedFormData, mergeFormDataIntoHar } from './utils/formDataCapture.js';
@@ -22,7 +22,7 @@ import type { RecordingWindow } from './interactive.js';
 // ---------------------------------------------------------------------------
 
 const argv = minimist(process.argv.slice(2), {
-  string: ['url', 'out', 'filter', 'script', 'session', 'profile', 'save-profile'],
+  string: ['url', 'out', 'filter', 'script', 'session', 'profile', 'save-profile', 'only'],
   boolean: ['headless', 'help', 'list'],
   alias: { h: 'help' },
 });
@@ -49,6 +49,9 @@ Options for  start:
   --headless             Headless browser  (env: SCANNER_HEADLESS)
   --script <file>        Automation script  (env: SCANNER_SCRIPT_PATH)
   --out <name>           Alias for --session (backwards compat)
+  --only <outputs>       Comma-separated list of outputs to generate, disabling all others.
+                         Valid: openapi, stepci, curl, coverage, anomalies, drift, html
+                         Implied deps: anomalies→coverage, drift→coverage, html→coverage+anomalies+drift
 
 Options for  login:
   --url <url>            App URL to open for login
@@ -78,6 +81,15 @@ Examples:
 
   # List saved profiles and sessions
   npm run capture -- list
+
+  # Generate only the OpenAPI spec for this run (ignore .env feature flags)
+  npm run capture -- start --url https://app.com --only openapi
+
+  # Generate spec + StepCI workflow only
+  npm run capture -- start --url https://app.com --only openapi,stepci
+
+  # Generate full HTML report suite (enables coverage, anomalies, drift, html)
+  npm run capture -- start --url https://app.com --only html
 `);
   process.exit(0);
 }
@@ -86,7 +98,51 @@ Examples:
 // Config
 // ---------------------------------------------------------------------------
 
-const config = resolveConfig({
+const VALID_ONLY_VALUES = ['openapi', 'stepci', 'curl', 'coverage', 'anomalies', 'drift', 'html'] as const;
+type OnlyValue = typeof VALID_ONLY_VALUES[number];
+
+function applyOnlyFlag(cfg: ScannerConfig, only: string): ScannerConfig {
+  const requested = only.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean) as OnlyValue[];
+
+  const invalid = requested.filter((v) => !(VALID_ONLY_VALUES as readonly string[]).includes(v));
+  if (invalid.length > 0) {
+    console.error(`Error: unknown --only value(s): ${invalid.join(', ')}`);
+    console.error(`Valid values: ${VALID_ONLY_VALUES.join(', ')}`);
+    process.exit(1);
+  }
+
+  // Zero all output flags; preserve dedup and examples (not output selectors)
+  const features: ScannerFeatures = {
+    dedup:      cfg.features.dedup,
+    examples:   cfg.features.examples,
+    openapi:    false,
+    stepci:     false,
+    curl:       false,
+    coverage:   false,
+    anomalies:  false,
+    drift:      false,
+    htmlReport: false,
+  };
+
+  for (const v of requested) {
+    if (v === 'openapi')   { features.openapi    = true; }
+    if (v === 'stepci')    { features.stepci     = true; }
+    if (v === 'curl')      { features.curl       = true; }
+    if (v === 'coverage')  { features.coverage   = true; }
+    if (v === 'anomalies') { features.anomalies  = true; features.coverage = true; }
+    if (v === 'drift')     { features.drift      = true; features.coverage = true; }
+    if (v === 'html')      {
+      features.htmlReport = true;
+      features.coverage   = true;
+      features.anomalies  = true;
+      features.drift      = true;
+    }
+  }
+
+  return { ...cfg, features };
+}
+
+let config = resolveConfig({
   baseUrl: argv.url,
   urlFilter: argv.filter,
   headless: argv.headless || undefined,
@@ -96,6 +152,10 @@ const config = resolveConfig({
   profile: argv.profile,
   saveProfile: argv['save-profile'],
 });
+
+if (argv.only) {
+  config = applyOnlyFlag(config, argv.only as string);
+}
 
 // ---------------------------------------------------------------------------
 // list command

@@ -112,6 +112,7 @@ Edit `.env` with your values. The file is gitignored — never commit it.
 | `SCANNER_SESSION` | `--session` | hostname slug | Session name — used as the output folder |
 | `SCANNER_PROFILE` | `--profile` | _(none)_ | Name of a saved auth profile to load |
 | `SCANNER_SCRIPT_PATH` | `--script` | _(none)_ | Path to an automation script |
+| — | `--only` | _(none)_ | Comma-separated output list for this run — overrides all `SCANNER_ENABLE_*` flags |
 
 **Auth / credentials**
 
@@ -724,12 +725,30 @@ start:
   --headless            Headless browser  (env: SCANNER_HEADLESS)
   --script <path>       Automation script
   --out <name>          Alias for --session (backwards compat)
+  --only <outputs>      Comma-separated outputs for this run — overrides SCANNER_ENABLE_* flags
+                        Values: openapi, stepci, curl, coverage, anomalies, drift, html
 
 login:
   --url <url>           App URL to open
   --save-profile <name> Name to save the profile under  (required)
 
   --help / -h           Show full help
+```
+
+### --only examples
+
+```sh
+# Spec only — no StepCI, no curl, no reports
+npm run capture -- start --url https://app.com --only openapi
+
+# Spec + workflow for CI
+npm run capture -- start --url https://app.com --only openapi,stepci
+
+# Full report suite (html implies coverage + anomalies + drift)
+npm run capture -- start --url https://app.com --only html
+
+# Coverage table only — no files except coverage.json
+npm run capture -- start --url https://app.com --only coverage
 ```
 
 ### Environment variables

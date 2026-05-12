@@ -9,6 +9,41 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.6.0] — 2026-05-13 — Phase 4: --only flag
+
+### Added
+
+- **`--only <outputs>`** CLI flag — comma-separated list of outputs to generate for a single
+  run, overriding all `SCANNER_ENABLE_*` env vars. All nine output flags are zeroed first,
+  then only the listed ones (plus their implied dependencies) are enabled.
+
+  Valid values: `openapi`, `stepci`, `curl`, `coverage`, `anomalies`, `drift`, `html`
+
+  Dependency resolution (automatic):
+  - `anomalies` → also enables `coverage`
+  - `drift`     → also enables `coverage`
+  - `html`      → also enables `coverage`, `anomalies`, `drift`
+
+  `dedup` and `examples` are not selectable via `--only` — they are preserved from env config.
+
+  Unknown values produce a clear error listing all valid options.
+
+  Examples:
+  ```sh
+  # OpenAPI spec only
+  api-scanner start --url https://app.com --only openapi
+
+  # Spec + StepCI workflow
+  api-scanner start --url https://app.com --only openapi,stepci
+
+  # Full HTML report suite
+  api-scanner start --url https://app.com --only html
+  ```
+
+  Without `--only`, existing `SCANNER_ENABLE_*` env var behaviour is unchanged.
+
+---
+
 ## [0.5.0] — 2026-05-13 — Phase 3: OpenAPI Quality
 
 ### Added
