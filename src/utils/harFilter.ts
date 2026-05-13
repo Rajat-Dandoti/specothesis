@@ -90,6 +90,10 @@ export function filterApiEntries(har: Har, urlFilter: string): HarEntry[] {
     const resourceType = entry._resourceType;
     if (resourceType && !['xhr', 'fetch', 'other'].includes(resourceType)) return false;
 
+    // Playwright records -1 for requests that never received an HTTP response
+    // (network error, cancelled, preflight failure). No valid status = no useful data.
+    if (entry.response.status < 100) return false;
+
     return true;
   });
 }
