@@ -127,20 +127,28 @@ export function waitForSave(): Promise<{ saved: boolean }> {
       terminal: false,
     });
 
+    let resolved = false;
+    const done = (result: { saved: boolean }) => {
+      if (!resolved) {
+        resolved = true;
+        resolve(result);
+      }
+    };
+
     rl.on('line', (raw) => {
       const cmd = raw.trim().toLowerCase();
       if (cmd === 'q') {
+        done({ saved: true });
         rl.close();
-        resolve({ saved: true });
       } else if (cmd === 'x') {
         console.log('\n  Cancelled — no profile saved.');
+        done({ saved: false });
         rl.close();
-        resolve({ saved: false });
       } else {
         process.stdout.write('> ');
       }
     });
 
-    rl.on('close', () => resolve({ saved: false }));
+    rl.on('close', () => done({ saved: false }));
   });
 }
