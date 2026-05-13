@@ -256,7 +256,13 @@ async function loginCommand(): Promise<void> {
   const page = await context.newPage();
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
 
-  await waitForSave();
+  const { saved } = await waitForSave();
+
+  if (!saved) {
+    await context.close();
+    await browser.close();
+    return;
+  }
 
   // Save auth state before closing
   const tmpPath = path.join(process.cwd(), `.profile-tmp-${Date.now()}.json`);

@@ -55,9 +55,19 @@ export function startInteractiveLoop(
     waitForStop(): Promise<RecordingWindow[]> {
       return new Promise((resolve) => {
         const windows: RecordingWindow[] = [];
-        let status: Status = 'recording';
         let windowStart = now();
 
+        // Non-TTY (CI / piped input): auto-stop when stdin closes
+        if (!process.stdin.isTTY) {
+          const rl = readline.createInterface({ input: process.stdin, terminal: false });
+          rl.on('close', () => {
+            windows.push({ start: windowStart, end: now() });
+            resolve(windows);
+          });
+          return;
+        }
+
+        let status: Status = 'recording';
         printStatus(status, sessionName, getRequestCount());
 
         const rl = readline.createInterface({
@@ -70,17 +80,14 @@ export function startInteractiveLoop(
           const cmd = raw.trim().toLowerCase();
 
           if (cmd === 'p' && status === 'recording') {
-            // Close the current recording window
             windows.push({ start: windowStart, end: now() });
             status = 'paused';
             printStatus(status, sessionName, getRequestCount());
           } else if (cmd === 'r' && status === 'paused') {
-            // Open a new recording window
             windowStart = now();
             status = 'recording';
             printStatus(status, sessionName, getRequestCount());
           } else if (cmd === 'q') {
-            // Close current window if still recording
             if (status === 'recording') {
               windows.push({ start: windowStart, end: now() });
             }
@@ -88,13 +95,11 @@ export function startInteractiveLoop(
             rl.close();
             resolve(windows);
           } else {
-            // Unknown command — re-print the prompt
             printStatus(status, sessionName, getRequestCount());
           }
         });
 
         rl.on('close', () => {
-          // stdin closed without 'q' (e.g. piped input ended)
           if (status === 'recording') {
             windows.push({ start: windowStart, end: now() });
           }
@@ -108,9 +113,12 @@ export function startInteractiveLoop(
 /**
  * Simpler version used during the login command — just waits for 'q'.
  */
-export function waitForSave(): Promise<void> {
+export function waitForSave(): Promise<{ saved: boolean }> {
   return new Promise((resolve) => {
-    console.log('\n  Log in to the app, then type  q  and press Enter to save your profile.');
+    console.log(
+      '\n  Log in to the app, then type  q  and press Enter to save your profile.\n' +
+        '  Type  x  to cancel without saving.'
+    );
     process.stdout.write('> ');
 
     const rl = readline.createInterface({
@@ -120,14 +128,19 @@ export function waitForSave(): Promise<void> {
     });
 
     rl.on('line', (raw) => {
-      if (raw.trim().toLowerCase() === 'q') {
+      const cmd = raw.trim().toLowerCase();
+      if (cmd === 'q') {
         rl.close();
-        resolve();
+        resolve({ saved: true });
+      } else if (cmd === 'x') {
+        console.log('\n  Cancelled — no profile saved.');
+        rl.close();
+        resolve({ saved: false });
       } else {
         process.stdout.write('> ');
       }
     });
 
-    rl.on('close', () => resolve());
+    rl.on('close', () => resolve({ saved: false }));
   });
 }
