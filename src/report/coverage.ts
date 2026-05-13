@@ -33,7 +33,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const NUMERIC_RE = /^\d+$/;
 const HEX_LONG_RE = /^[0-9a-f]{9,}$/i;
 
-function normaliseCoveragePath(pathname: string): string {
+export function normaliseCoveragePath(pathname: string): string {
   return pathname
     .split('/')
     .map((seg) => {

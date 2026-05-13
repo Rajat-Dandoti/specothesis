@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { HarEntry } from '../utils/harFilter.js';
 import type { CoverageSummary, EndpointCoverage } from './coverage.js';
+import { normaliseCoveragePath } from './coverage.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -112,18 +113,7 @@ export function detectAnomalies(summary: CoverageSummary, entries: HarEntry[]): 
       if (e.request.method.toUpperCase() !== ep.method) return false;
       try {
         const u = new URL(e.request.url);
-        // Normalise on the fly for matching: replace uuid/numeric/hex-long segments
-        const norm = u.pathname
-          .split('/')
-          .map((seg) =>
-            /^\d+$/.test(seg) ||
-            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(seg) ||
-            /^[0-9a-f]{9,}$/i.test(seg)
-              ? '{id}'
-              : seg
-          )
-          .join('/');
-        return norm === ep.path;
+        return normaliseCoveragePath(u.pathname) === ep.path;
       } catch {
         return false;
       }
