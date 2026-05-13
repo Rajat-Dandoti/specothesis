@@ -62,7 +62,7 @@ function shellQuote(s: string): string {
 function toCurlCommand(entry: HarEntry): string {
   const { method, url, headers, postData } = entry.request;
 
-  const flags: string[] = [`curl -s -X ${method}`];
+  const flags: string[] = [`curl -sS -X ${method}`];
 
   const auth = authHeader(headers);
   if (auth) flags.push(auth);
