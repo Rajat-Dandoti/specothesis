@@ -3,12 +3,36 @@ import * as path from 'path';
 import type { HarEntry } from '../utils/harFilter.js';
 
 // ---------------------------------------------------------------------------
-// Header policy: ONLY Authorization, value replaced by $SCANNER_AUTH_TOKEN
+// Header policy: preserve all non-noisy headers; replace Authorization value
 // ---------------------------------------------------------------------------
 
-function authHeader(headers: Array<{ name: string; value: string }>): string | undefined {
-  const h = headers.find((h) => h.name.toLowerCase() === 'authorization');
-  return h ? `-H 'Authorization: $SCANNER_AUTH_TOKEN'` : undefined;
+const SKIP_HEADERS = new Set([
+  'host',
+  'connection',
+  'content-length',
+  'accept-encoding',
+  'accept-language',
+  'origin',
+  'referer',
+  'user-agent',
+  'sec-fetch-dest',
+  'sec-fetch-mode',
+  'sec-fetch-site',
+  'sec-ch-ua',
+  'sec-ch-ua-mobile',
+  'sec-ch-ua-platform',
+  'cookie',
+]);
+
+function buildHeaders(headers: Array<{ name: string; value: string }>): string[] {
+  return headers
+    .filter((h) => !SKIP_HEADERS.has(h.name.toLowerCase()))
+    .map((h) => {
+      if (h.name.toLowerCase() === 'authorization') {
+        return `-H 'Authorization: $SCANNER_AUTH_TOKEN'`;
+      }
+      return `-H ${shellQuote(`${h.name}: ${h.value}`)}`;
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -62,9 +86,7 @@ function toCurlCommand(entry: HarEntry): string {
 
   const flags: string[] = [`curl -sS -X ${method}`];
 
-  const auth = authHeader(headers);
-  if (auth) flags.push(auth);
-
+  flags.push(...buildHeaders(headers));
   flags.push(...bodyFlags(postData));
   flags.push(shellQuote(url));
 

@@ -108,6 +108,37 @@ describe('toCurl — curl flags', () => {
   });
 });
 
+describe('toCurl — custom headers', () => {
+  it('preserves custom headers like X-Tenant-ID', () => {
+    const entry = makeEntry({
+      headers: [
+        { name: 'X-Tenant-ID', value: 'acme' },
+        { name: 'X-Request-ID', value: 'abc123' },
+      ],
+    });
+    toCurl([entry], tmpDir);
+    const output = getCombined(tmpDir);
+    expect(output).toContain('X-Tenant-ID: acme');
+    expect(output).toContain('X-Request-ID: abc123');
+  });
+
+  it('drops noisy browser headers like user-agent and origin', () => {
+    const entry = makeEntry({
+      headers: [
+        { name: 'user-agent', value: 'Mozilla/5.0' },
+        { name: 'origin', value: 'https://app.example.com' },
+        { name: 'X-Custom', value: 'keep-me' },
+      ],
+    });
+    toCurl([entry], tmpDir);
+    const output = getCombined(tmpDir);
+    expect(output).not.toContain('user-agent');
+    expect(output).not.toContain('Mozilla');
+    expect(output).not.toContain('origin');
+    expect(output).toContain('X-Custom: keep-me');
+  });
+});
+
 describe('toCurl — output files', () => {
   it('creates requests.sh with shebang', () => {
     toCurl([makeEntry({})], tmpDir);
