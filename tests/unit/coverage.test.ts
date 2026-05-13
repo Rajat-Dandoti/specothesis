@@ -17,7 +17,8 @@ function makeEntry(overrides: {
     request: {
       method: overrides.method ?? 'GET',
       url: overrides.url ?? 'https://api.example.com/api/v1/items',
-      headers: overrides.hasAuth !== false ? [{ name: 'authorization', value: 'Bearer token' }] : [],
+      headers:
+        overrides.hasAuth !== false ? [{ name: 'authorization', value: 'Bearer token' }] : [],
       queryString: [],
       bodySize: 0,
       headersSize: 0,
@@ -55,19 +56,13 @@ describe('buildCoverageSummary', () => {
   });
 
   it('sets hasAuth true when at least one request has auth header', () => {
-    const entries = [
-      makeEntry({ hasAuth: false }),
-      makeEntry({ hasAuth: true }),
-    ];
+    const entries = [makeEntry({ hasAuth: false }), makeEntry({ hasAuth: true })];
     const summary = buildCoverageSummary(entries, 'test');
     expect(summary.endpoints[0].hasAuth).toBe(true);
   });
 
   it('sets hasAuth false when no requests have auth header', () => {
-    const entries = [
-      makeEntry({ hasAuth: false }),
-      makeEntry({ hasAuth: false }),
-    ];
+    const entries = [makeEntry({ hasAuth: false }), makeEntry({ hasAuth: false })];
     const summary = buildCoverageSummary(entries, 'test');
     expect(summary.endpoints[0].hasAuth).toBe(false);
   });

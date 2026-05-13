@@ -48,28 +48,33 @@ function normaliseCoveragePath(pathname: string): string {
 // ---------------------------------------------------------------------------
 
 export function buildCoverageSummary(entries: HarEntry[], sessionName: string): CoverageSummary {
-  const groups = new Map<string, {
-    method: string;
-    path: string;
-    statusCodes: Set<number>;
-    callCount: number;
-    hasAuth: boolean;
-    responseTimes: number[];
-    requestSizes: number[];
-    responseSizes: number[];
-  }>();
+  const groups = new Map<
+    string,
+    {
+      method: string;
+      path: string;
+      statusCodes: Set<number>;
+      callCount: number;
+      hasAuth: boolean;
+      responseTimes: number[];
+      requestSizes: number[];
+      responseSizes: number[];
+    }
+  >();
 
   for (const entry of entries) {
     let urlObj: URL;
-    try { urlObj = new URL(entry.request.url); } catch { continue; }
+    try {
+      urlObj = new URL(entry.request.url);
+    } catch {
+      continue;
+    }
 
     const method = entry.request.method.toUpperCase();
     const normPath = normaliseCoveragePath(urlObj.pathname);
     const key = `${method}:${normPath}`;
 
-    const hasAuth = entry.request.headers.some(
-      (h) => h.name.toLowerCase() === 'authorization'
-    );
+    const hasAuth = entry.request.headers.some((h) => h.name.toLowerCase() === 'authorization');
 
     if (!groups.has(key)) {
       groups.set(key, {
@@ -99,9 +104,10 @@ export function buildCoverageSummary(entries: HarEntry[], sessionName: string): 
     statusCodes: [...g.statusCodes].sort((a, b) => a - b),
     callCount: g.callCount,
     hasAuth: g.hasAuth,
-    avgResponseMs: g.responseTimes.length > 0
-      ? Math.round(g.responseTimes.reduce((s, t) => s + t, 0) / g.responseTimes.length)
-      : 0,
+    avgResponseMs:
+      g.responseTimes.length > 0
+        ? Math.round(g.responseTimes.reduce((s, t) => s + t, 0) / g.responseTimes.length)
+        : 0,
     requestSizes: g.requestSizes,
     responseSizes: g.responseSizes,
   }));
@@ -133,11 +139,11 @@ export function printCoverageTable(summary: CoverageSummary): void {
   const { sessionName, totalRequests, uniqueEndpoints, endpoints } = summary;
 
   // Column widths — dynamic based on content
-  const methodW = 6;  // "METHOD" / longest is "DELETE" = 6
-  const pathW   = Math.max(4, ...endpoints.map((e) => e.path.length));
+  const methodW = 6; // "METHOD" / longest is "DELETE" = 6
+  const pathW = Math.max(4, ...endpoints.map((e) => e.path.length));
   const statusW = Math.max(6, ...endpoints.map((e) => e.statusCodes.join(', ').length));
-  const authW   = 4;  // "AUTH"
-  const avgW    = Math.max(3, ...endpoints.map((e) => `${e.avgResponseMs}ms`.length));
+  const authW = 4; // "AUTH"
+  const avgW = Math.max(3, ...endpoints.map((e) => `${e.avgResponseMs}ms`.length));
 
   const rowWidth = 2 + methodW + 2 + pathW + 2 + statusW + 2 + authW + 2 + avgW;
   const line = '-'.repeat(Math.max(rowWidth, 60));
@@ -146,7 +152,9 @@ export function printCoverageTable(summary: CoverageSummary): void {
 
   console.log('');
   console.log(line);
-  console.log(`  SESSION: ${sessionName}   ${totalRequests} request${totalRequests !== 1 ? 's' : ''}   ${uniqueEndpoints} endpoint${uniqueEndpoints !== 1 ? 's' : ''}`);
+  console.log(
+    `  SESSION: ${sessionName}   ${totalRequests} request${totalRequests !== 1 ? 's' : ''}   ${uniqueEndpoints} endpoint${uniqueEndpoints !== 1 ? 's' : ''}`
+  );
   console.log(line);
   console.log(
     `  ${pad('METHOD', methodW)}  ${pad('PATH', pathW)}  ${pad('STATUS', statusW)}  ${pad('AUTH', authW)}  AVG`
@@ -154,8 +162,8 @@ export function printCoverageTable(summary: CoverageSummary): void {
 
   for (const ep of endpoints) {
     const status = ep.statusCodes.join(', ');
-    const auth   = ep.hasAuth ? '/' : 'x';
-    const avg    = `${ep.avgResponseMs}ms`;
+    const auth = ep.hasAuth ? '/' : 'x';
+    const avg = `${ep.avgResponseMs}ms`;
     console.log(
       `  ${pad(ep.method, methodW)}  ${pad(ep.path, pathW)}  ${pad(status, statusW)}  ${pad(auth, authW)}  ${avg}`
     );

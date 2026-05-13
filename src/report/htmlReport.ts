@@ -42,14 +42,18 @@ function buildAnomalySection(anomalies: Anomaly[]): string {
   }
 
   const warns = anomalies.filter((a) => a.severity === 'warn');
-  const infos  = anomalies.filter((a) => a.severity === 'info');
+  const infos = anomalies.filter((a) => a.severity === 'info');
 
   const rows = (items: Anomaly[], cls: string) =>
-    items.map((a) => `<tr class="${cls}">
+    items
+      .map(
+        (a) => `<tr class="${cls}">
       <td>${esc(a.endpoint)}</td>
       <td>${esc(a.rule)}</td>
       <td>${esc(a.message)}</td>
-    </tr>`).join('\n');
+    </tr>`
+      )
+      .join('\n');
 
   return `<section>
   <h2>Anomalies</h2>
@@ -77,7 +81,7 @@ function buildDriftSection(drift: DriftReport | null): string {
     `<tr class="${cls}"><td>${sym}</td><td>${esc(endpoint)}</td><td>${esc(detail)}</td></tr>`;
 
   const rows = [
-    ...drift.added.map((d)   => row('+', 'd-add', d.endpoint)),
+    ...drift.added.map((d) => row('+', 'd-add', d.endpoint)),
     ...drift.removed.map((d) => row('-', 'd-rem', d.endpoint)),
     ...drift.changed.map((d) => row('~', 'd-chg', d.endpoint, d.detail ?? '')),
   ].join('\n');
@@ -92,13 +96,14 @@ function buildDriftSection(drift: DriftReport | null): string {
 }
 
 function buildCoverageSection(summary: CoverageSummary): string {
-  const rows = summary.endpoints.map((ep) => {
-    const status    = ep.statusCodes.join(', ');
-    const auth      = ep.hasAuth ? '<span class="auth-y">/</span>' : '<span class="auth-n">x</span>';
-    const avgRaw    = ep.avgResponseMs;
-    const avgCls    = avgRaw > 2000 ? 's-warn' : avgRaw > 800 ? 's-redir' : '';
+  const rows = summary.endpoints
+    .map((ep) => {
+      const status = ep.statusCodes.join(', ');
+      const auth = ep.hasAuth ? '<span class="auth-y">/</span>' : '<span class="auth-n">x</span>';
+      const avgRaw = ep.avgResponseMs;
+      const avgCls = avgRaw > 2000 ? 's-warn' : avgRaw > 800 ? 's-redir' : '';
 
-    return `<tr>
+      return `<tr>
       <td><span class="${methodCls(ep.method)}">${esc(ep.method)}</span></td>
       <td class="path">${esc(ep.path)}</td>
       <td class="${statusCls(ep.statusCodes)}">${esc(status)}</td>
@@ -106,7 +111,8 @@ function buildCoverageSection(summary: CoverageSummary): string {
       <td class="${avgCls}" data-val="${avgRaw}">${avgRaw}ms</td>
       <td data-val="${ep.callCount}">${ep.callCount}</td>
     </tr>`;
-  }).join('\n');
+    })
+    .join('\n');
 
   return `<section>
   <h2>Coverage — ${summary.uniqueEndpoints} endpoint${summary.uniqueEndpoints !== 1 ? 's' : ''}, ${summary.totalRequests} request${summary.totalRequests !== 1 ? 's' : ''}</h2>
@@ -239,26 +245,31 @@ ${buildCoverageSection(summary)}
 export function generateSchemaHtmlReport(manifest: SchemaManifest, outDir: string): void {
   const ranAt = new Date(manifest.ranAt).toLocaleString();
 
-  const epRows = manifest.endpoints.map((ep) => {
-    const failCls = ep.failed > 0 ? 's-err' : 's-ok';
-    return `<tr>
+  const epRows = manifest.endpoints
+    .map((ep) => {
+      const failCls = ep.failed > 0 ? 's-err' : 's-ok';
+      return `<tr>
       <td><span class="${methodCls(ep.method)}">${esc(ep.method)}</span></td>
       <td class="path">${esc(ep.path)}</td>
       <td class="${failCls}" data-val="${ep.failed}">${ep.failed}</td>
       <td data-val="${ep.skipped}">${ep.skipped}</td>
     </tr>`;
-  }).join('\n');
+    })
+    .join('\n');
 
   const failureBlocks = manifest.endpoints
     .filter((ep) => ep.failures.length > 0)
     .flatMap((ep) =>
-      ep.failures.map((f) => `<div class="fail-block">
+      ep.failures.map(
+        (f) => `<div class="fail-block">
         <span class="s-err">${esc(ep.method)} ${esc(ep.path)}</span>
         ${f.statusReceived !== undefined ? `<br><span class="dim">received:</span> <span class="s-warn">${f.statusReceived}</span>` : ''}
         <br><span class="dim">reason:</span>   ${esc(f.failureReason)}
         ${f.reproduceCurl ? `<br><span class="dim">curl:</span>     <span class="curl">${esc(f.reproduceCurl)}</span>` : ''}
-      </div>`)
-    ).join('\n');
+      </div>`
+      )
+    )
+    .join('\n');
 
   const schemaJS = `
 (function(){
@@ -285,7 +296,9 @@ export function generateSchemaHtmlReport(manifest: SchemaManifest, outDir: strin
   });
 })();`.trim();
 
-  const schemaCss = CSS + `
+  const schemaCss =
+    CSS +
+    `
 .curl{color:#607d8b;word-break:break-all}
 .fail-block{border-top:1px solid #1c1c1c;padding:10px 0;font-size:12px;line-height:1.8}
 .stat-row{display:flex;gap:32px;margin-bottom:24px}
@@ -323,10 +336,14 @@ export function generateSchemaHtmlReport(manifest: SchemaManifest, outDir: strin
   </table>
 </section>
 
-${failureBlocks ? `<section>
+${
+  failureBlocks
+    ? `<section>
   <h2>Failures</h2>
   ${failureBlocks}
-</section>` : '<section><h2>Failures</h2><p class="none">✓ No failures</p></section>'}
+</section>`
+    : '<section><h2>Failures</h2><p class="none">✓ No failures</p></section>'
+}
 
 <footer>Generated by Specothesis · schema-manifest</footer>
 <script>${schemaJS}</script>

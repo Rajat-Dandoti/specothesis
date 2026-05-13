@@ -76,7 +76,7 @@ describe('pipeline — curl output', () => {
   });
 
   it('produces one individual .sh per entry', () => {
-    const files = fs.readdirSync(path.join(tmpDir, 'curls')).filter(f => f !== 'requests.sh');
+    const files = fs.readdirSync(path.join(tmpDir, 'curls')).filter((f) => f !== 'requests.sh');
     expect(files.length).toBe(entries.length);
   });
 });

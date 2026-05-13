@@ -22,7 +22,8 @@ function bodyFlags(postData: HarEntry['request']['postData']): string[] {
 
   if (mime.toLowerCase().includes('multipart/form-data')) {
     const params = postData.params ?? [];
-    if (params.length === 0) return postData.text ? [`--data-raw ${shellQuote(postData.text)}`] : [];
+    if (params.length === 0)
+      return postData.text ? [`--data-raw ${shellQuote(postData.text)}`] : [];
     return params.map((p) =>
       p.fileName
         ? `-F ${shellQuote(`${p.name}=@<path/to/${p.fileName}>`)}`
@@ -32,10 +33,7 @@ function bodyFlags(postData: HarEntry['request']['postData']): string[] {
 
   if (mime.toLowerCase().includes('application/json')) {
     const body = postData.text ?? '';
-    return [
-      `-H 'Content-Type: application/json'`,
-      `--data-raw ${shellQuote(body)}`,
-    ];
+    return [`-H 'Content-Type: application/json'`, `--data-raw ${shellQuote(body)}`];
   }
 
   if (mime.toLowerCase().includes('application/x-www-form-urlencoded')) {
@@ -89,7 +87,11 @@ export function toCurl(entries: HarEntry[], outDir: string): void {
     const urlObj = new URL(entry.request.url);
 
     // Build a filesystem-safe slug from the path
-    const slug = urlObj.pathname.replace(/^\//, '').replace(/\//g, '_').replace(/[^a-zA-Z0-9_.-]/g, '') || 'root';
+    const slug =
+      urlObj.pathname
+        .replace(/^\//, '')
+        .replace(/\//g, '_')
+        .replace(/[^a-zA-Z0-9_.-]/g, '') || 'root';
     const num = String(i + 1).padStart(3, '0');
     const fileName = `${num}_${entry.request.method}_${slug}.sh`;
 

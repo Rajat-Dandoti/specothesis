@@ -55,15 +55,15 @@ function attr(tag: string, name: string): string {
 // ---------------------------------------------------------------------------
 
 function parseFailureMessage(msg: string): SchemaTestCase {
-  const idMatch   = /Test Case ID:\s*(\S+)/.exec(msg);
+  const idMatch = /Test Case ID:\s*(\S+)/.exec(msg);
   const ruleMatch = /^- (.+)$/m.exec(msg);
   const statMatch = /Received:\s*(\d+)/.exec(msg);
   const curlMatch = /Reproduce with:\s*\n\n\s+(curl[\s\S]+?)(?:\n\n|$)/.exec(msg);
 
-  const testCaseId    = idMatch?.[1] ?? 'unknown';
+  const testCaseId = idMatch?.[1] ?? 'unknown';
   const failureReason = ruleMatch?.[1]?.trim() ?? msg.split('\n')[0]?.trim() ?? 'unknown';
   const statusReceived = statMatch ? parseInt(statMatch[1], 10) : undefined;
-  const reproduceCurl  = curlMatch?.[1]?.trim().replace(/\s+/g, ' ');
+  const reproduceCurl = curlMatch?.[1]?.trim().replace(/\s+/g, ' ');
 
   return {
     testCaseId,
@@ -80,7 +80,7 @@ function parseFailureMessage(msg: string): SchemaTestCase {
 
 interface RawTestCase {
   name: string;
-  failures: string[];   // raw failure message strings
+  failures: string[]; // raw failure message strings
   skipped: number;
 }
 
@@ -96,9 +96,9 @@ function parseJUnit(xml: string): { suiteAttr: Record<string, string>; cases: Ra
   const tcRe = /<testcase([^>]*)>([\s\S]*?)<\/testcase>/gi;
 
   for (const tcMatch of xml.matchAll(tcRe)) {
-    const tcTag     = tcMatch[1];
-    const tcBody    = tcMatch[2];
-    const name      = attr(`name="${attr(tcTag + '"', 'name')}"`, 'name') || attr(tcTag, 'name');
+    const tcTag = tcMatch[1];
+    const tcBody = tcMatch[2];
+    const name = attr(`name="${attr(tcTag + '"', 'name')}"`, 'name') || attr(tcTag, 'name');
 
     // Collect all <failure message="..."/> within this testcase
     const failures: string[] = [];
@@ -106,7 +106,9 @@ function parseJUnit(xml: string): { suiteAttr: Record<string, string>; cases: Ra
       failures.push(attr(`message="${fMatch[1]}"`, 'message'));
     }
     // Also handle <failure ...>...</failure> (long-form)
-    for (const fMatch of tcBody.matchAll(/<failure[^>]*message="([^"]*)"[^>]*>([\s\S]*?)<\/failure>/gi)) {
+    for (const fMatch of tcBody.matchAll(
+      /<failure[^>]*message="([^"]*)"[^>]*>([\s\S]*?)<\/failure>/gi
+    )) {
       failures.push(attr(`message="${fMatch[1]}"`, 'message'));
     }
 
@@ -134,7 +136,7 @@ export function buildManifest(
   const sourceSpec = path.join('captures', sessionName, 'openapi.yaml');
 
   const endpoints: SchemaEndpointResult[] = [];
-  let totalFailed  = 0;
+  let totalFailed = 0;
   let totalSkipped = 0;
 
   for (const tc of cases) {
@@ -143,13 +145,13 @@ export function buildManifest(
 
     if (!opMatch) {
       // Non-operation entry (e.g. "Stateful tests") — still count failures
-      totalFailed  += tc.failures.length;
+      totalFailed += tc.failures.length;
       totalSkipped += tc.skipped;
       continue;
     }
 
-    const method  = opMatch[1].toUpperCase();
-    const opPath  = opMatch[2];
+    const method = opMatch[1].toUpperCase();
+    const opPath = opMatch[2];
     const failures = tc.failures.map(parseFailureMessage);
 
     endpoints.push({
@@ -160,7 +162,7 @@ export function buildManifest(
       failures,
     });
 
-    totalFailed  += tc.failures.length;
+    totalFailed += tc.failures.length;
     totalSkipped += tc.skipped;
   }
 
@@ -183,7 +185,7 @@ export function buildManifest(
 // ---------------------------------------------------------------------------
 
 export function writeManifest(manifest: SchemaManifest, sessionName: string): string {
-  const outDir  = path.join(CAPTURES_DIR, sessionName);
+  const outDir = path.join(CAPTURES_DIR, sessionName);
   const outPath = path.join(outDir, 'schemathesis-manifest.json');
 
   if (!fs.existsSync(outDir)) {
@@ -203,8 +205,8 @@ export function printManifest(manifest: SchemaManifest): void {
   const { sessionName, sourceSpec, totalOperations, totalFailed, endpoints } = manifest;
 
   const methodW = 6;
-  const pathW   = Math.max(4, ...endpoints.map((e) => e.path.length));
-  const line    = '-'.repeat(Math.max(methodW + pathW + 30, 55));
+  const pathW = Math.max(4, ...endpoints.map((e) => e.path.length));
+  const line = '-'.repeat(Math.max(methodW + pathW + 30, 55));
 
   console.log('');
   console.log(`  SCHEMATHESIS MANIFEST  ${sessionName}`);

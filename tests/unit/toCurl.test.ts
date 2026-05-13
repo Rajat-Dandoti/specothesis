@@ -117,7 +117,7 @@ describe('toCurl — output files', () => {
 
   it('creates one individual .sh file per entry', () => {
     toCurl([makeEntry({}), makeEntry({ url: 'https://api.example.com/api/v1/other' })], tmpDir);
-    const files = fs.readdirSync(path.join(tmpDir, 'curls')).filter(f => f !== 'requests.sh');
+    const files = fs.readdirSync(path.join(tmpDir, 'curls')).filter((f) => f !== 'requests.sh');
     expect(files).toHaveLength(2);
   });
 });

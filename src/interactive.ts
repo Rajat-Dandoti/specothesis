@@ -22,8 +22,8 @@
 import * as readline from 'readline';
 
 export interface RecordingWindow {
-  start: string;   // ISO timestamp when recording started / resumed
-  end: string;     // ISO timestamp when paused / stopped
+  start: string; // ISO timestamp when recording started / resumed
+  end: string; // ISO timestamp when paused / stopped
 }
 
 type Status = 'recording' | 'paused';
@@ -40,9 +40,7 @@ function now(): string {
 function printStatus(status: Status, sessionName: string, count: number): void {
   const indicator = status === 'recording' ? '● RECORDING' : '⏸ PAUSED';
   const cmds =
-    status === 'recording'
-      ? 'Commands:  p = pause   q = stop'
-      : 'Commands:  r = resume  q = stop';
+    status === 'recording' ? 'Commands:  p = pause   q = stop' : 'Commands:  r = resume  q = stop';
 
   console.log(`\n  ${indicator}  |  session: "${sessionName}"  |  ${count} requests captured`);
   console.log(`  ${cmds}`);
@@ -76,13 +74,11 @@ export function startInteractiveLoop(
             windows.push({ start: windowStart, end: now() });
             status = 'paused';
             printStatus(status, sessionName, getRequestCount());
-
           } else if (cmd === 'r' && status === 'paused') {
             // Open a new recording window
             windowStart = now();
             status = 'recording';
             printStatus(status, sessionName, getRequestCount());
-
           } else if (cmd === 'q') {
             // Close current window if still recording
             if (status === 'recording') {
@@ -91,7 +87,6 @@ export function startInteractiveLoop(
             console.log('\n  Stopping session...');
             rl.close();
             resolve(windows);
-
           } else {
             // Unknown command — re-print the prompt
             printStatus(status, sessionName, getRequestCount());

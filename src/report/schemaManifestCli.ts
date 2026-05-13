@@ -6,9 +6,9 @@ const argv = minimist(process.argv.slice(2), {
   string: ['junit', 'session', 'url'],
 });
 
-const junitPath  = argv['junit']   as string | undefined;
-const session    = argv['session'] as string | undefined;
-const baseUrl    = argv['url']     as string | undefined ?? '';
+const junitPath = argv['junit'] as string | undefined;
+const session = argv['session'] as string | undefined;
+const baseUrl = (argv['url'] as string | undefined) ?? '';
 
 if (!junitPath || !session) {
   console.error(`
@@ -33,7 +33,7 @@ if (!existsSync(junitPath)) {
 }
 
 try {
-  const manifest    = buildManifest(junitPath, session, baseUrl);
+  const manifest = buildManifest(junitPath, session, baseUrl);
   const manifestPath = writeManifest(manifest, session);
   printManifest(manifest);
   console.log(`  Manifest: ${manifestPath}`);

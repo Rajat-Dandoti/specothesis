@@ -79,7 +79,7 @@ export function detectDrift(current: CoverageSummary, previous: CoverageSummary)
     current.endpoints.map((ep) => [endpointKey(ep), ep])
   );
 
-  const added: EndpointDrift[]   = [];
+  const added: EndpointDrift[] = [];
   const removed: EndpointDrift[] = [];
   const changed: EndpointDrift[] = [];
 
@@ -105,7 +105,9 @@ export function detectDrift(current: CoverageSummary, previous: CoverageSummary)
     const details: string[] = [];
 
     if (!statusSetEqual(curr.statusCodes, prev.statusCodes)) {
-      details.push(`status codes: [${prev.statusCodes.join(', ')}] → [${curr.statusCodes.join(', ')}]`);
+      details.push(
+        `status codes: [${prev.statusCodes.join(', ')}] → [${curr.statusCodes.join(', ')}]`
+      );
     }
 
     if (curr.hasAuth !== prev.hasAuth) {

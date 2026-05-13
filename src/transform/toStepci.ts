@@ -90,7 +90,9 @@ function buildHeaders(
   return Object.keys(result).length > 0 ? result : undefined;
 }
 
-function buildJsonpathChecks(responseText: string | undefined): Record<string, Array<Record<string, boolean>>> | undefined {
+function buildJsonpathChecks(
+  responseText: string | undefined
+): Record<string, Array<Record<string, boolean>>> | undefined {
   if (!responseText) return undefined;
 
   let parsed: unknown;
@@ -189,7 +191,11 @@ function entryToStep(entry: HarEntry, useCaptures = false, authScheme?: string):
   const stepName = `${method} ${urlObj.pathname}`;
 
   const isMultipart = (postData?.mimeType ?? '').toLowerCase().includes('multipart/form-data');
-  const headers = buildHeaders(reqHeaders, { stripContentType: isMultipart, useCaptures, authScheme });
+  const headers = buildHeaders(reqHeaders, {
+    stripContentType: isMultipart,
+    useCaptures,
+    authScheme,
+  });
   const bodyFields = buildRequestBody(postData);
   const jsonpath = buildJsonpathChecks(content.text);
 
@@ -225,14 +231,24 @@ function buildLoginStep(authUrl: string, cfg: LoginStepConfig): StepciStep {
   const usernameRef = '${{env.SCANNER_USERNAME}}';
   const passwordRef = '${{env.SCANNER_PASSWORD}}';
 
-  let bodyFields: { form?: Record<string, string>; formData?: Record<string, unknown>; json?: unknown };
+  let bodyFields: {
+    form?: Record<string, string>;
+    formData?: Record<string, unknown>;
+    json?: unknown;
+  };
 
   if (cfg.authBodyFormat === 'json') {
-    bodyFields = { json: { [cfg.authUsernameField]: usernameRef, [cfg.authPasswordField]: passwordRef } };
+    bodyFields = {
+      json: { [cfg.authUsernameField]: usernameRef, [cfg.authPasswordField]: passwordRef },
+    };
   } else if (cfg.authBodyFormat === 'formData') {
-    bodyFields = { formData: { [cfg.authUsernameField]: usernameRef, [cfg.authPasswordField]: passwordRef } };
+    bodyFields = {
+      formData: { [cfg.authUsernameField]: usernameRef, [cfg.authPasswordField]: passwordRef },
+    };
   } else {
-    bodyFields = { form: { [cfg.authUsernameField]: usernameRef, [cfg.authPasswordField]: passwordRef } };
+    bodyFields = {
+      form: { [cfg.authUsernameField]: usernameRef, [cfg.authPasswordField]: passwordRef },
+    };
   }
 
   return {

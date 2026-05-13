@@ -60,7 +60,12 @@ export function listProfiles(): string[] {
 // ---------------------------------------------------------------------------
 
 function slugify(s: string): string {
-  return s.replace(/[^a-z0-9]/gi, '-').replace(/-+/g, '-').toLowerCase().slice(0, 50).replace(/-$/, '');
+  return s
+    .replace(/[^a-z0-9]/gi, '-')
+    .replace(/-+/g, '-')
+    .toLowerCase()
+    .slice(0, 50)
+    .replace(/-$/, '');
 }
 
 /**

@@ -177,15 +177,15 @@ export const defaultConfig: ScannerConfig = {
   ),
 
   features: {
-    dedup:      envBool('SCANNER_ENABLE_DEDUP',        true),
-    openapi:    envBool('SCANNER_ENABLE_OPENAPI',      true),
-    stepci:     envBool('SCANNER_ENABLE_STEPCI',       true),
-    curl:       envBool('SCANNER_ENABLE_CURL',         true),
-    examples:   envBool('SCANNER_ENABLE_EXAMPLES',     true),
-    coverage:   envBool('SCANNER_ENABLE_COVERAGE',     true),
-    anomalies:  envBool('SCANNER_ENABLE_ANOMALIES',    true),
-    drift:      envBool('SCANNER_ENABLE_DRIFT',        true),
-    htmlReport: envBool('SCANNER_ENABLE_HTML_REPORT',  true),
+    dedup: envBool('SCANNER_ENABLE_DEDUP', true),
+    openapi: envBool('SCANNER_ENABLE_OPENAPI', true),
+    stepci: envBool('SCANNER_ENABLE_STEPCI', true),
+    curl: envBool('SCANNER_ENABLE_CURL', true),
+    examples: envBool('SCANNER_ENABLE_EXAMPLES', true),
+    coverage: envBool('SCANNER_ENABLE_COVERAGE', true),
+    anomalies: envBool('SCANNER_ENABLE_ANOMALIES', true),
+    drift: envBool('SCANNER_ENABLE_DRIFT', true),
+    htmlReport: envBool('SCANNER_ENABLE_HTML_REPORT', true),
   },
 };
 

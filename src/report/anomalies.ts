@@ -165,7 +165,7 @@ export function writeAnomalyReport(anomalies: Anomaly[], outDir: string): void {
 
 export function printAnomalies(anomalies: Anomaly[]): void {
   const warns = anomalies.filter((a) => a.severity === 'warn');
-  const infos  = anomalies.filter((a) => a.severity === 'info');
+  const infos = anomalies.filter((a) => a.severity === 'info');
 
   if (anomalies.length === 0) {
     console.log('  ✓  No anomalies detected');
@@ -181,6 +181,8 @@ export function printAnomalies(anomalies: Anomaly[]): void {
 
   if (infos.length > 0) {
     if (warns.length > 0) console.log('');
-    console.log(`  ℹ  ${infos.length} informational finding${infos.length !== 1 ? 's' : ''} — see anomalies.json`);
+    console.log(
+      `  ℹ  ${infos.length} informational finding${infos.length !== 1 ? 's' : ''} — see anomalies.json`
+    );
   }
 }

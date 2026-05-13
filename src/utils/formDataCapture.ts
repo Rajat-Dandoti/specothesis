@@ -13,7 +13,7 @@
  * entries that are missing postData.
  */
 
-import type { BrowserContext, Page } from 'playwright';
+import type { BrowserContext } from 'playwright';
 import type { HarEntry, HarPostDataParam } from './harFilter.js';
 
 // ---------------------------------------------------------------------------
@@ -22,15 +22,15 @@ import type { HarEntry, HarPostDataParam } from './harFilter.js';
 
 export interface CapturedFormEntry {
   url: string;
-  method: string;        // always uppercase
-  timestamp: string;     // ISO — when the request was initiated in the browser
+  method: string; // always uppercase
+  timestamp: string; // ISO — when the request was initiated in the browser
   params: Array<{
     name: string;
-    value?: string;      // text fields
-    fileName?: string;   // file fields
+    value?: string; // text fields
+    fileName?: string; // file fields
     contentType?: string;
   }>;
-  mimeType: string;      // full content-type including boundary
+  mimeType: string; // full content-type including boundary
 }
 
 // ---------------------------------------------------------------------------
@@ -137,7 +137,9 @@ export async function injectFormDataCapture(context: BrowserContext): Promise<vo
 // Collect captured data from all open pages
 // ---------------------------------------------------------------------------
 
-export async function collectCapturedFormData(context: BrowserContext): Promise<CapturedFormEntry[]> {
+export async function collectCapturedFormData(
+  context: BrowserContext
+): Promise<CapturedFormEntry[]> {
   const all: CapturedFormEntry[] = [];
 
   for (const page of context.pages()) {
@@ -168,10 +170,7 @@ export async function collectCapturedFormData(context: BrowserContext): Promise<
  */
 const MATCH_WINDOW_MS = 15_000; // 15 s — generous for slow uploads
 
-export function mergeFormDataIntoHar(
-  entries: HarEntry[],
-  captured: CapturedFormEntry[]
-): void {
+export function mergeFormDataIntoHar(entries: HarEntry[], captured: CapturedFormEntry[]): void {
   if (captured.length === 0) return;
 
   // Build a FIFO queue per method+url key

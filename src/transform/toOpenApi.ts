@@ -14,12 +14,17 @@ function inferSchema(value: unknown, withExample = false): JsonSchema {
   const ex = (v: unknown) => (withExample ? { example: v } : {});
   if (value === null) return { type: 'string', nullable: true, ...ex(null) };
   if (typeof value === 'boolean') return { type: 'boolean', ...ex(value) };
-  if (typeof value === 'number') return Number.isInteger(value)
-    ? { type: 'integer', ...ex(value) }
-    : { type: 'number', ...ex(value) };
+  if (typeof value === 'number')
+    return Number.isInteger(value)
+      ? { type: 'integer', ...ex(value) }
+      : { type: 'number', ...ex(value) };
   if (typeof value === 'string') return { type: 'string', ...ex(value) };
   if (Array.isArray(value)) {
-    return { type: 'array', items: value.length > 0 ? inferSchema(value[0], withExample) : {}, ...ex(value) };
+    return {
+      type: 'array',
+      items: value.length > 0 ? inferSchema(value[0], withExample) : {},
+      ...ex(value),
+    };
   }
   if (typeof value === 'object') {
     const properties: Record<string, JsonSchema> = {};
@@ -67,7 +72,12 @@ function buildRequestBodySpec(
     const text = postData.text ?? '';
     let parsed: unknown;
     let schema: JsonSchema = { type: 'object' };
-    try { parsed = JSON.parse(text); schema = inferSchema(parsed, withExample); } catch { /* leave generic */ }
+    try {
+      parsed = JSON.parse(text);
+      schema = inferSchema(parsed, withExample);
+    } catch {
+      /* leave generic */
+    }
     const contentEntry: Record<string, unknown> = { schema };
     if (withExample && parsed !== undefined) contentEntry.example = parsed;
     return { required: true, content: { 'application/json': contentEntry } };
@@ -163,14 +173,19 @@ function normalisePath(pathname: string): { template: string; paramNames: string
 // Response body schema
 // ---------------------------------------------------------------------------
 
-function buildResponseSchema(responseText: string | undefined, withExample = false): JsonSchema | undefined {
+function buildResponseSchema(
+  responseText: string | undefined,
+  withExample = false
+): JsonSchema | undefined {
   if (!responseText) return undefined;
   try {
     const parsed = JSON.parse(responseText);
     const schema = inferSchema(parsed, withExample);
     if (withExample) schema.example = parsed;
     return schema;
-  } catch { return undefined; }
+  } catch {
+    return undefined;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -188,19 +203,30 @@ interface LoginAuthConfig {
  * Build a login operation for the spec using the provided auth URL and config.
  * The URL path is used as-is — no application-specific pattern matching.
  */
-function buildLoginOperation(authUrl: string, authCfg: LoginAuthConfig): {
-  serverUrl: string;
-  pathTemplate: string;
-  operation: Record<string, unknown>;
-} | undefined {
+function buildLoginOperation(
+  authUrl: string,
+  authCfg: LoginAuthConfig
+):
+  | {
+      serverUrl: string;
+      pathTemplate: string;
+      operation: Record<string, unknown>;
+    }
+  | undefined {
   let parsed: URL;
-  try { parsed = new URL(authUrl); } catch {
-    console.warn(`  [openapi] WARNING: SCANNER_AUTH_URL is not a valid URL: "${authUrl}" — login operation skipped.`);
+  try {
+    parsed = new URL(authUrl);
+  } catch {
+    console.warn(
+      `  [openapi] WARNING: SCANNER_AUTH_URL is not a valid URL: "${authUrl}" — login operation skipped.`
+    );
     return undefined;
   }
 
   if (!parsed.pathname || parsed.pathname === '/') {
-    console.warn(`  [openapi] WARNING: SCANNER_AUTH_URL has no path (got "${authUrl}"). Set the full login URL, e.g. https://auth.example.com/api/v1/login`);
+    console.warn(
+      `  [openapi] WARNING: SCANNER_AUTH_URL has no path (got "${authUrl}"). Set the full login URL, e.g. https://auth.example.com/api/v1/login`
+    );
     return undefined;
   }
 
@@ -213,9 +239,11 @@ function buildLoginOperation(authUrl: string, authCfg: LoginAuthConfig): {
   // Determine content type from body format
   const fmt = authCfg.authBodyFormat;
   const contentType =
-    fmt === 'json'     ? 'application/json' :
-    fmt === 'formData' ? 'multipart/form-data' :
-    'application/x-www-form-urlencoded';
+    fmt === 'json'
+      ? 'application/json'
+      : fmt === 'formData'
+        ? 'multipart/form-data'
+        : 'application/x-www-form-urlencoded';
 
   const bodySchema = {
     type: 'object',
@@ -266,7 +294,7 @@ interface OperationGroup {
   method: string;
   pathTemplate: string;
   paramNames: string[];
-  entryServerUrl: string;   // origin of the actual entry URL
+  entryServerUrl: string; // origin of the actual entry URL
   entry: HarEntry;
 }
 
@@ -289,14 +317,24 @@ export function toOpenApi(
         const basePath = u.pathname.replace(/\/$/, '');
         const serverUrl = basePath && basePath !== '' ? `${host}${basePath}` : host;
         return { baseServerUrl: serverUrl, baseOriginHost: host };
-      } catch { /* fall through */ }
+      } catch {
+        /* fall through */
+      }
     }
     const freq = new Map<string, number>();
     for (const e of entries) {
-      try { const u = new URL(e.request.url); const o = `${u.protocol}//${u.host}`; freq.set(o, (freq.get(o) ?? 0) + 1); } catch { /* skip */ }
+      try {
+        const u = new URL(e.request.url);
+        const o = `${u.protocol}//${u.host}`;
+        freq.set(o, (freq.get(o) ?? 0) + 1);
+      } catch {
+        /* skip */
+      }
     }
     const top = [...freq.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '';
-    console.warn(`  [openapi] WARNING: SCANNER_API_URL not set. Using most-frequent host "${top}" as spec server. Set SCANNER_API_URL to suppress this warning.`);
+    console.warn(
+      `  [openapi] WARNING: SCANNER_API_URL not set. Using most-frequent host "${top}" as spec server. Set SCANNER_API_URL to suppress this warning.`
+    );
     return { baseServerUrl: top, baseOriginHost: top };
   })();
 
@@ -339,17 +377,28 @@ export function toOpenApi(
     const pathItem = paths[pathTemplate] as Record<string, unknown>;
 
     const parameters: unknown[] = paramNames.map((name) => ({
-      name, in: 'path', required: true, schema: { type: 'string' },
+      name,
+      in: 'path',
+      required: true,
+      schema: { type: 'string' },
     }));
 
     const urlObj = new URL(entry.request.url);
     for (const [k, v] of urlObj.searchParams) {
-      parameters.push({ name: k, in: 'query', required: false, schema: inferSchema(v), example: v });
+      parameters.push({
+        name: k,
+        in: 'query',
+        required: false,
+        schema: inferSchema(v),
+        example: v,
+      });
     }
 
     const requestBody = buildRequestBodySpec(entry.request.postData, includeExamples);
     const responseSchema = buildResponseSchema(entry.response.content.text, includeExamples);
-    const responseContent = responseSchema ? { 'application/json': { schema: responseSchema } } : undefined;
+    const responseContent = responseSchema
+      ? { 'application/json': { schema: responseSchema } }
+      : undefined;
 
     // Deduplicated operationId
     const baseId = deriveOperationId(method, pathTemplate);

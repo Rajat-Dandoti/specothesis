@@ -10,7 +10,9 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const NUMERIC_RE = /^\d+$/;
 const HEX_LONG_RE = /^[0-9a-f]{9,}$/i;
 
-const ID_SEGMENT = { test: (s: string) => UUID_RE.test(s) || NUMERIC_RE.test(s) || HEX_LONG_RE.test(s) };
+const ID_SEGMENT = {
+  test: (s: string) => UUID_RE.test(s) || NUMERIC_RE.test(s) || HEX_LONG_RE.test(s),
+};
 
 function normalisePath(pathname: string): { template: string; paramNames: string[] } {
   const paramNames: string[] = [];

@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { filterApiEntries, filterByWindows, deduplicateEntries } from '../../src/utils/harFilter.js';
+import {
+  filterApiEntries,
+  filterByWindows,
+  deduplicateEntries,
+} from '../../src/utils/harFilter.js';
 import type { Har, HarEntry } from '../../src/utils/harFilter.js';
 
 function makeEntry(overrides: Partial<HarEntry> & { url: string; method?: string }): HarEntry {
@@ -64,16 +68,28 @@ describe('filterApiEntries', () => {
 describe('filterByWindows', () => {
   it('returns all entries when no windows provided', () => {
     const entries = [
-      makeEntry({ url: 'https://api.example.com/api/a', startedDateTime: '2026-05-13T10:00:00.000Z' }),
-      makeEntry({ url: 'https://api.example.com/api/b', startedDateTime: '2026-05-13T10:01:00.000Z' }),
+      makeEntry({
+        url: 'https://api.example.com/api/a',
+        startedDateTime: '2026-05-13T10:00:00.000Z',
+      }),
+      makeEntry({
+        url: 'https://api.example.com/api/b',
+        startedDateTime: '2026-05-13T10:01:00.000Z',
+      }),
     ];
     expect(filterByWindows(entries, [])).toHaveLength(2);
   });
 
   it('excludes entries outside recording windows', () => {
     const entries = [
-      makeEntry({ url: 'https://api.example.com/api/a', startedDateTime: '2026-05-13T10:00:00.000Z' }),
-      makeEntry({ url: 'https://api.example.com/api/b', startedDateTime: '2026-05-13T10:05:00.000Z' }),
+      makeEntry({
+        url: 'https://api.example.com/api/a',
+        startedDateTime: '2026-05-13T10:00:00.000Z',
+      }),
+      makeEntry({
+        url: 'https://api.example.com/api/b',
+        startedDateTime: '2026-05-13T10:05:00.000Z',
+      }),
     ];
     const windows = [{ start: '2026-05-13T10:00:00.000Z', end: '2026-05-13T10:02:00.000Z' }];
     const result = filterByWindows(entries, windows);

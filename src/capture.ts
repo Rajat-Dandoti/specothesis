@@ -3,17 +3,37 @@ import * as path from 'path';
 import { chromium } from 'playwright';
 import minimist from 'minimist';
 import { resolveConfig, type ScannerConfig, type ScannerFeatures } from './config.js';
-import { readHar, filterApiEntries, filterByWindows, deduplicateEntries, writeFilteredHar } from './utils/harFilter.js';
+import {
+  readHar,
+  filterApiEntries,
+  filterByWindows,
+  deduplicateEntries,
+  writeFilteredHar,
+} from './utils/harFilter.js';
 import { enrichHarEntries } from './utils/harNormalize.js';
-import { injectFormDataCapture, collectCapturedFormData, mergeFormDataIntoHar } from './utils/formDataCapture.js';
+import {
+  injectFormDataCapture,
+  collectCapturedFormData,
+  mergeFormDataIntoHar,
+} from './utils/formDataCapture.js';
 import { toOpenApi } from './transform/toOpenApi.js';
 import { toStepci } from './transform/toStepci.js';
 import { toCurl } from './transform/toCurl.js';
-import { buildCoverageSummary, writeCoverageReport, printCoverageTable } from './report/coverage.js';
+import {
+  buildCoverageSummary,
+  writeCoverageReport,
+  printCoverageTable,
+} from './report/coverage.js';
 import { detectAnomalies, writeAnomalyReport, printAnomalies } from './report/anomalies.js';
 import { detectDrift, loadPreviousCoverage, writeDriftReport, printDrift } from './report/drift.js';
 import { generateHtmlReport } from './report/htmlReport.js';
-import { saveProfile, getProfilePath, listProfiles, makeSessionDir, listSessions } from './session.js';
+import {
+  saveProfile,
+  getProfilePath,
+  listProfiles,
+  makeSessionDir,
+  listSessions,
+} from './session.js';
 import { startInteractiveLoop, waitForSave } from './interactive.js';
 import type { RecordingWindow } from './interactive.js';
 
@@ -100,11 +120,22 @@ Examples:
 // Config
 // ---------------------------------------------------------------------------
 
-const VALID_ONLY_VALUES = ['openapi', 'stepci', 'curl', 'coverage', 'anomalies', 'drift', 'html'] as const;
-type OnlyValue = typeof VALID_ONLY_VALUES[number];
+const VALID_ONLY_VALUES = [
+  'openapi',
+  'stepci',
+  'curl',
+  'coverage',
+  'anomalies',
+  'drift',
+  'html',
+] as const;
+type OnlyValue = (typeof VALID_ONLY_VALUES)[number];
 
 function applyOnlyFlag(cfg: ScannerConfig, only: string): ScannerConfig {
-  const requested = only.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean) as OnlyValue[];
+  const requested = only
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean) as OnlyValue[];
 
   const invalid = requested.filter((v) => !(VALID_ONLY_VALUES as readonly string[]).includes(v));
   if (invalid.length > 0) {
@@ -115,29 +146,43 @@ function applyOnlyFlag(cfg: ScannerConfig, only: string): ScannerConfig {
 
   // Zero all output flags; preserve dedup and examples (not output selectors)
   const features: ScannerFeatures = {
-    dedup:      cfg.features.dedup,
-    examples:   cfg.features.examples,
-    openapi:    false,
-    stepci:     false,
-    curl:       false,
-    coverage:   false,
-    anomalies:  false,
-    drift:      false,
+    dedup: cfg.features.dedup,
+    examples: cfg.features.examples,
+    openapi: false,
+    stepci: false,
+    curl: false,
+    coverage: false,
+    anomalies: false,
+    drift: false,
     htmlReport: false,
   };
 
   for (const v of requested) {
-    if (v === 'openapi')   { features.openapi    = true; }
-    if (v === 'stepci')    { features.stepci     = true; }
-    if (v === 'curl')      { features.curl       = true; }
-    if (v === 'coverage')  { features.coverage   = true; }
-    if (v === 'anomalies') { features.anomalies  = true; features.coverage = true; }
-    if (v === 'drift')     { features.drift      = true; features.coverage = true; }
-    if (v === 'html')      {
+    if (v === 'openapi') {
+      features.openapi = true;
+    }
+    if (v === 'stepci') {
+      features.stepci = true;
+    }
+    if (v === 'curl') {
+      features.curl = true;
+    }
+    if (v === 'coverage') {
+      features.coverage = true;
+    }
+    if (v === 'anomalies') {
+      features.anomalies = true;
+      features.coverage = true;
+    }
+    if (v === 'drift') {
+      features.drift = true;
+      features.coverage = true;
+    }
+    if (v === 'html') {
       features.htmlReport = true;
-      features.coverage   = true;
-      features.anomalies  = true;
-      features.drift      = true;
+      features.coverage = true;
+      features.anomalies = true;
+      features.drift = true;
     }
   }
 
@@ -223,7 +268,9 @@ async function loginCommand(): Promise<void> {
 
   console.log(`\n  Profile saved: ${savedPath}`);
   console.log(`\n  Use it with:`);
-  console.log(`    npm run capture -- start --url ${baseUrl} --profile ${profileName} --session <session-name>\n`);
+  console.log(
+    `    npm run capture -- start --url ${baseUrl} --profile ${profileName} --session <session-name>\n`
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -232,7 +279,8 @@ async function loginCommand(): Promise<void> {
 
 async function startCommand(): Promise<void> {
   const { baseUrl, urlFilter, headless, scriptPath } = config;
-  const sessionName = config.session || config.outName || (baseUrl ? new URL(baseUrl).hostname : 'session');
+  const sessionName =
+    config.session || config.outName || (baseUrl ? new URL(baseUrl).hostname : 'session');
   const profileName = config.profile;
 
   if (!baseUrl) {
@@ -245,7 +293,9 @@ async function startCommand(): Promise<void> {
   if (profileName) {
     profilePath = getProfilePath(profileName);
     if (!profilePath) {
-      console.error(`Error: profile "${profileName}" not found. Run: npm run capture -- login --url ${baseUrl} --save-profile ${profileName}`);
+      console.error(
+        `Error: profile "${profileName}" not found. Run: npm run capture -- login --url ${baseUrl} --save-profile ${profileName}`
+      );
       process.exit(1);
     }
   }
@@ -333,7 +383,9 @@ async function startCommand(): Promise<void> {
 
   console.log(`\n  Captured ${requestCount} XHR/fetch requests total.`);
   if (recordingWindows.length > 0) {
-    console.log(`  Recording windows: ${recordingWindows.length} (paused ${recordingWindows.length - 1 > 0 ? recordingWindows.length - 1 + ' time(s)' : '0 times'})`);
+    console.log(
+      `  Recording windows: ${recordingWindows.length} (paused ${recordingWindows.length - 1 > 0 ? recordingWindows.length - 1 + ' time(s)' : '0 times'})`
+    );
   }
   console.log(`  Raw HAR: ${harPath}`);
 
@@ -364,7 +416,9 @@ async function startCommand(): Promise<void> {
     apiEntries = deduplicateEntries(apiEntries);
     const dropped = before - apiEntries.length;
     if (dropped > 0) {
-      console.log(`  Deduplicated: removed ${dropped} duplicate request(s) (${apiEntries.length} unique remain).`);
+      console.log(
+        `  Deduplicated: removed ${dropped} duplicate request(s) (${apiEntries.length} unique remain).`
+      );
     }
   }
 
@@ -378,16 +432,18 @@ async function startCommand(): Promise<void> {
     authScheme: config.authScheme,
   };
 
-  if (config.features.openapi)  toOpenApi(apiEntries, runDir, config.apiUrl, config.authUrl, config.features.examples, authCfg);
-  if (config.features.stepci)   toStepci(apiEntries, sessionName, runDir, config.authUrl, authCfg);
-  if (config.features.curl)     toCurl(apiEntries, runDir);
+  if (config.features.openapi)
+    toOpenApi(apiEntries, runDir, config.apiUrl, config.authUrl, config.features.examples, authCfg);
+  if (config.features.stepci) toStepci(apiEntries, sessionName, runDir, config.authUrl, authCfg);
+  if (config.features.curl) toCurl(apiEntries, runDir);
 
   // Phases 2-5 all need the summary — build it once if any reporting feature is on
-  const needsSummary = config.features.coverage || config.features.anomalies
-    || config.features.drift || config.features.htmlReport;
-  const coverageSummary = needsSummary
-    ? buildCoverageSummary(apiEntries, sessionName)
-    : null;
+  const needsSummary =
+    config.features.coverage ||
+    config.features.anomalies ||
+    config.features.drift ||
+    config.features.htmlReport;
+  const coverageSummary = needsSummary ? buildCoverageSummary(apiEntries, sessionName) : null;
 
   // Phase 2 — Coverage map
   if (config.features.coverage && coverageSummary) {
@@ -396,9 +452,10 @@ async function startCommand(): Promise<void> {
   }
 
   // Phase 3 — Anomaly detection
-  const anomalies = (config.features.anomalies && coverageSummary)
-    ? detectAnomalies(coverageSummary, apiEntries)
-    : [];
+  const anomalies =
+    config.features.anomalies && coverageSummary
+      ? detectAnomalies(coverageSummary, apiEntries)
+      : [];
   if (config.features.anomalies && coverageSummary) {
     writeAnomalyReport(anomalies, runDir);
     printAnomalies(anomalies);
@@ -422,7 +479,9 @@ async function startCommand(): Promise<void> {
 
   console.log(`\nDone. Outputs in:\n  ${runDir}\n`);
   console.log('Next steps:');
-  console.log(`  schemathesis run ${path.join(runDir, 'openapi.yaml')} --url ${baseUrl} --checks all`);
+  console.log(
+    `  schemathesis run ${path.join(runDir, 'openapi.yaml')} --url ${baseUrl} --checks all`
+  );
   console.log(`  stepci run ${path.join(runDir, 'stepci-workflow.yaml')}`);
 }
 

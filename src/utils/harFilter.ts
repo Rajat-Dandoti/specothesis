@@ -2,8 +2,8 @@ import * as fs from 'fs';
 
 export interface HarPostDataParam {
   name: string;
-  value?: string;       // present for text fields
-  fileName?: string;    // present for file upload parts
+  value?: string; // present for text fields
+  fileName?: string; // present for file upload parts
   contentType?: string; // MIME type of the part
 }
 
@@ -17,7 +17,7 @@ export interface HarEntry {
     queryString: Array<{ name: string; value: string }>;
     postData?: {
       mimeType: string;
-      text?: string;   // empty for multipart — use params instead
+      text?: string; // empty for multipart — use params instead
       params?: HarPostDataParam[];
     };
     bodySize: number;
