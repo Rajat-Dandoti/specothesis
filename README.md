@@ -47,6 +47,8 @@ npm install -g stepci          # StepCI regression runner
 pip install schemathesis        # Schemathesis API fuzzer (requires Python)
 ```
 
+Or use the Makefile to set everything up in one shot — see [Contributing](#contributing).
+
 The generated `openapi.yaml` can also be imported directly into **Postman** (File → Import) or **Swagger UI** without any additional tooling.
 
 ---
@@ -274,6 +276,15 @@ Architecture and internals: **[ARCHITECTURE.md](ARCHITECTURE.md)**
 ---
 
 ## Contributing
+
+A `Makefile` is included for convenience:
+
+```bash
+make install   # npm install + Playwright Chromium — minimum to run specothesis
+make setup     # full setup: install + Python venv + schemathesis + stepci + .env
+make build     # compile TypeScript → dist/
+make clean     # remove dist/ and .venv/
+```
 
 See **[CONTRIBUTING.md](CONTRIBUTING.md)** for dev setup, how to add anomaly rules, and PR conventions.
 
