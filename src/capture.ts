@@ -45,7 +45,7 @@ import type { RecordingWindow } from './interactive.js';
 
 const argv = minimist(process.argv.slice(2), {
   string: ['url', 'out', 'filter', 'script', 'session', 'profile', 'save-profile', 'only'],
-  boolean: ['headless', 'help', 'list', 'version', 'quiet'],
+  boolean: ['headless', 'help', 'list', 'version', 'quiet', 'include-failed'],
   alias: { h: 'help', v: 'version', q: 'quiet' },
 });
 
@@ -85,6 +85,8 @@ Options for  start:
                          Implied deps: anomalies→coverage, drift→coverage, html→coverage+anomalies+drift
   --quiet / -q           Suppress per-request [req]/[res] log lines; always print the final summary.
                          Env: SCANNER_QUIET=true
+  --include-failed       Include requests that received no HTTP response (network errors, CORS
+                         preflight failures, cancellations). Default: off. Env: SCANNER_CAPTURE_FAILED=true
   --version / -v         Print version and exit.
 
 Options for  login:
@@ -211,6 +213,7 @@ let config = resolveConfig({
   profile: argv.profile,
   saveProfile: argv['save-profile'],
   quiet: argv.quiet ? true : undefined,
+  captureFailedRequests: argv['include-failed'] ? true : undefined,
 });
 
 if (argv.only) {
@@ -414,7 +417,9 @@ async function startCommand(): Promise<void> {
   // -------------------------------------------------------------------------
 
   const har = readHar(harPath);
-  let apiEntries = filterApiEntries(har, urlFilter);
+  let apiEntries = filterApiEntries(har, urlFilter, {
+    captureFailedRequests: config.captureFailedRequests,
+  });
 
   // Apply recording-window filter (excludes requests made while paused)
   apiEntries = filterByWindows(apiEntries, recordingWindows);

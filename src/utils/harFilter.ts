@@ -77,7 +77,11 @@ export function readHar(harPath: string): Har {
  * or anything else — filtering on response type causes real endpoints to vanish.
  * The URL filter + resource type is enough to scope to API traffic.
  */
-export function filterApiEntries(har: Har, urlFilter: string): HarEntry[] {
+export function filterApiEntries(
+  har: Har,
+  urlFilter: string,
+  opts: { captureFailedRequests?: boolean } = {}
+): HarEntry[] {
   const regex = globToRegex(urlFilter);
 
   return har.log.entries.filter((entry) => {
@@ -91,8 +95,9 @@ export function filterApiEntries(har: Har, urlFilter: string): HarEntry[] {
     if (resourceType && !['xhr', 'fetch', 'other'].includes(resourceType)) return false;
 
     // Playwright records -1 for requests that never received an HTTP response
-    // (network error, cancelled, preflight failure). No valid status = no useful data.
-    if (entry.response.status < 100) return false;
+    // (network error, cancelled, CORS preflight failure). These produce invalid
+    // OpenAPI status codes — skip unless the user explicitly wants them.
+    if (entry.response.status < 100 && !opts.captureFailedRequests) return false;
 
     return true;
   });

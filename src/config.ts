@@ -137,6 +137,12 @@ export interface ScannerConfig {
   // --- Output control ---
   /** Suppress per-request [req]/[res] log lines; always print the final summary */
   quiet: boolean;
+  /**
+   * Include entries where no HTTP response was received (Playwright status -1).
+   * Covers network errors, CORS preflight failures, and cancelled requests.
+   * Default: false — these entries produce invalid OpenAPI status codes.
+   */
+  captureFailedRequests: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -194,6 +200,7 @@ export const defaultConfig: ScannerConfig = {
   },
 
   quiet: envBool('SCANNER_QUIET', false),
+  captureFailedRequests: envBool('SCANNER_CAPTURE_FAILED', false),
 };
 
 /**
