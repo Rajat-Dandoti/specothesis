@@ -13,6 +13,7 @@
 import { config as loadDotenv } from 'dotenv';
 import * as path from 'path';
 import * as fs from 'fs';
+import { ConfigError } from './errors.js';
 
 // Load .env from project root if it exists
 const envPath = path.resolve(process.cwd(), '.env');
@@ -200,6 +201,50 @@ export function resolveConfig(cliOverrides: Partial<ScannerConfig>): ScannerConf
       Object.entries(cliOverrides).filter(([, v]) => v !== undefined && v !== '')
     ),
   };
+}
+
+const VALID_AUTH_METHODS: AuthMethod[] = ['bearer-login', 'bearer-static', 'api-key', 'basic', 'none'];
+const VALID_AUTH_BODY_FORMATS: AuthBodyFormat[] = ['form', 'json', 'formData'];
+
+/**
+ * Validate config at startup and throw ConfigError with a clear message on
+ * the first invalid value found. Called before any browser or file I/O.
+ */
+export function validateConfig(config: ScannerConfig): void {
+  if (!config.baseUrl) {
+    throw new ConfigError('SCANNER_BASE_URL is required. Set it in .env or pass --url <url>.');
+  }
+  try {
+    new URL(config.baseUrl);
+  } catch {
+    throw new ConfigError(`SCANNER_BASE_URL is not a valid URL: "${config.baseUrl}"`);
+  }
+
+  if (config.authUrl) {
+    try {
+      new URL(config.authUrl);
+    } catch {
+      throw new ConfigError(`SCANNER_AUTH_URL is not a valid URL: "${config.authUrl}"`);
+    }
+  }
+
+  if (!VALID_AUTH_METHODS.includes(config.authMethod)) {
+    throw new ConfigError(
+      `SCANNER_AUTH_METHOD must be one of: ${VALID_AUTH_METHODS.join(', ')}. Got: "${config.authMethod}"`
+    );
+  }
+
+  if (!VALID_AUTH_BODY_FORMATS.includes(config.authBodyFormat)) {
+    throw new ConfigError(
+      `SCANNER_AUTH_BODY_FORMAT must be one of: ${VALID_AUTH_BODY_FORMATS.join(', ')}. Got: "${config.authBodyFormat}"`
+    );
+  }
+
+  if (!config.authTokenPath.startsWith('$.')) {
+    throw new ConfigError(
+      `SCANNER_AUTH_TOKEN_PATH must start with "$." (e.g. $.access_token). Got: "${config.authTokenPath}"`
+    );
+  }
 }
 
 /**

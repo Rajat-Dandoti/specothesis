@@ -140,8 +140,8 @@ export function detectAnomalies(summary: CoverageSummary, entries: HarEntry[]): 
             message,
           });
         }
-      } catch {
-        // Malformed entry — skip and continue per spec
+      } catch (err) {
+        console.error(`[anomalies] rule "${rule.id}" threw on ${ep.method} ${ep.path}:`, err);
       }
     }
   }

@@ -14,6 +14,7 @@ interface StepciStep {
     form?: Record<string, string>;
     formData?: Record<string, unknown>;
     body?: string;
+    captures?: Record<string, { jsonpath: string }>;
     check: {
       status: number;
       jsonpath?: Record<string, Array<Record<string, boolean>>>;
@@ -257,7 +258,6 @@ function buildLoginStep(authUrl: string, cfg: LoginStepConfig): StepciStep {
       url: authUrl,
       method: 'POST',
       ...bodyFields,
-      // @ts-expect-error — StepCI captures is valid at runtime but not in our local type
       captures: {
         token: { jsonpath: cfg.authTokenPath },
       },

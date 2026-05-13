@@ -2,7 +2,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { chromium } from 'playwright';
 import minimist from 'minimist';
-import { resolveConfig, type ScannerConfig, type ScannerFeatures } from './config.js';
+import { resolveConfig, validateConfig, type ScannerConfig, type ScannerFeatures } from './config.js';
+import { ConfigError } from './errors.js';
 import {
   readHar,
   filterApiEntries,
@@ -192,7 +193,7 @@ function applyOnlyFlag(cfg: ScannerConfig, only: string): ScannerConfig {
 let config = resolveConfig({
   baseUrl: argv.url,
   urlFilter: argv.filter,
-  headless: argv.headless || undefined,
+  headless: 'headless' in argv ? Boolean(argv.headless) : undefined,
   outName: argv.out,
   scriptPath: argv.script,
   session: argv.session ?? argv.out,
@@ -278,15 +279,12 @@ async function loginCommand(): Promise<void> {
 // ---------------------------------------------------------------------------
 
 async function startCommand(): Promise<void> {
+  validateConfig(config);
+
   const { baseUrl, urlFilter, headless, scriptPath } = config;
   const sessionName =
     config.session || config.outName || (baseUrl ? new URL(baseUrl).hostname : 'session');
   const profileName = config.profile;
-
-  if (!baseUrl) {
-    console.error('Error: --url is required (or set SCANNER_BASE_URL in .env)');
-    process.exit(1);
-  }
 
   // Resolve profile path
   let profilePath: string | undefined;
@@ -339,8 +337,12 @@ async function startCommand(): Promise<void> {
     }
   });
   page.on('response', (res) => {
-    if (['xhr', 'fetch'].includes(res.request().resourceType())) {
-      console.log(`  [res] ${res.status()} ${res.url()}`);
+    try {
+      if (['xhr', 'fetch'].includes(res.request().resourceType())) {
+        console.log(`  [res] ${res.status()} ${res.url()}`);
+      }
+    } catch {
+      // res.request() can throw if the request was GC'd during navigation — safe to ignore
     }
   });
 
@@ -500,6 +502,10 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-  console.error('Fatal error:', err);
+  if (err instanceof ConfigError) {
+    console.error(`\nConfiguration error: ${err.message}\n`);
+  } else {
+    console.error('Fatal error:', err);
+  }
   process.exit(1);
 });

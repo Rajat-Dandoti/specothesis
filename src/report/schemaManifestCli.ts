@@ -1,3 +1,4 @@
+import path from 'path';
 import minimist from 'minimist';
 import { buildManifest, writeManifest, printManifest } from './schemaManifest.js';
 import { generateSchemaHtmlReport } from './htmlReport.js';
@@ -38,10 +39,8 @@ try {
   printManifest(manifest);
   console.log(`  Manifest: ${manifestPath}`);
 
-  import('path').then(({ default: path }) => {
-    const outDir = path.dirname(manifestPath);
-    generateSchemaHtmlReport(manifest, outDir);
-  });
+  const outDir = path.dirname(manifestPath);
+  generateSchemaHtmlReport(manifest, outDir);
 } catch (err) {
   console.error('Error parsing JUnit XML:', err instanceof Error ? err.message : err);
   process.exit(1);
