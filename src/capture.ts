@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { createRequire } from 'module';
 import { chromium } from 'playwright';
 import minimist from 'minimist';
 import { resolveConfig, validateConfig, type ScannerConfig, type ScannerFeatures } from './config.js';
@@ -44,11 +45,18 @@ import type { RecordingWindow } from './interactive.js';
 
 const argv = minimist(process.argv.slice(2), {
   string: ['url', 'out', 'filter', 'script', 'session', 'profile', 'save-profile', 'only'],
-  boolean: ['headless', 'help', 'list'],
-  alias: { h: 'help' },
+  boolean: ['headless', 'help', 'list', 'version', 'quiet'],
+  alias: { h: 'help', v: 'version', q: 'quiet' },
 });
 
 const COMMAND = (argv._[0] as string | undefined) ?? 'start'; // 'login' | 'start' | 'list'
+
+if (argv.version) {
+  const _require = createRequire(import.meta.url);
+  const pkg = _require('../package.json') as { version: string };
+  console.log(pkg.version);
+  process.exit(0);
+}
 
 if (argv.help || COMMAND === 'help') {
   console.log(`
@@ -75,6 +83,9 @@ Options for  start:
   --only <outputs>       Comma-separated list of outputs to generate, disabling all others.
                          Valid: openapi, stepci, curl, coverage, anomalies, drift, html
                          Implied deps: anomalies→coverage, drift→coverage, html→coverage+anomalies+drift
+  --quiet / -q           Suppress per-request [req]/[res] log lines; always print the final summary.
+                         Env: SCANNER_QUIET=true
+  --version / -v         Print version and exit.
 
 Options for  login:
   --url <url>            App URL to open for login
@@ -199,6 +210,7 @@ let config = resolveConfig({
   session: argv.session ?? argv.out,
   profile: argv.profile,
   saveProfile: argv['save-profile'],
+  quiet: argv.quiet ? true : undefined,
 });
 
 if (argv.only) {
@@ -339,13 +351,13 @@ async function startCommand(): Promise<void> {
   page.on('request', (req) => {
     if (['xhr', 'fetch'].includes(req.resourceType())) {
       requestCount++;
-      console.log(`  [req] ${req.method()} ${req.url()}`);
+      if (!config.quiet) console.log(`  [req] ${req.method()} ${req.url()}`);
     }
   });
   page.on('response', (res) => {
     try {
       if (['xhr', 'fetch'].includes(res.request().resourceType())) {
-        console.log(`  [res] ${res.status()} ${res.url()}`);
+        if (!config.quiet) console.log(`  [res] ${res.status()} ${res.url()}`);
       }
     } catch {
       // res.request() can throw if the request was GC'd during navigation — safe to ignore

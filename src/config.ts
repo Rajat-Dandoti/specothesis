@@ -133,6 +133,10 @@ export interface ScannerConfig {
   // --- Feature flags ---
   /** Toggle individual outputs and post-processing steps on/off */
   features: ScannerFeatures;
+
+  // --- Output control ---
+  /** Suppress per-request [req]/[res] log lines; always print the final summary */
+  quiet: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -188,6 +192,8 @@ export const defaultConfig: ScannerConfig = {
     drift: envBool('SCANNER_ENABLE_DRIFT', true),
     htmlReport: envBool('SCANNER_ENABLE_HTML_REPORT', true),
   },
+
+  quiet: envBool('SCANNER_QUIET', false),
 };
 
 /**
