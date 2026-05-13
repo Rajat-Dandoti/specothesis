@@ -97,6 +97,9 @@ export function listSessions(): string[] {
   return fs
     .readdirSync(CAPTURES_DIR)
     .filter((d) => fs.statSync(path.join(CAPTURES_DIR, d)).isDirectory())
-    .sort()
-    .reverse();
+    .sort((a, b) => {
+      const mtimeA = fs.statSync(path.join(CAPTURES_DIR, a)).mtimeMs;
+      const mtimeB = fs.statSync(path.join(CAPTURES_DIR, b)).mtimeMs;
+      return mtimeB - mtimeA;
+    });
 }
