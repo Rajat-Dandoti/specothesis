@@ -1,5 +1,9 @@
 # Specothesis
 
+[![npm version](https://img.shields.io/npm/v/specothesis)](https://www.npmjs.com/package/specothesis)
+[![license](https://img.shields.io/npm/l/specothesis)](LICENSE)
+[![node](https://img.shields.io/node/v/specothesis)](https://nodejs.org)
+
 Record API traffic from a real browser session and instantly get an **OpenAPI spec**, a **StepCI regression workflow**, **curl scripts**, and a full **coverage + anomaly report** — no proxy, no certificate installation, no manual spec writing.
 
 Built on Playwright. Works with any web app.
@@ -25,6 +29,25 @@ Browser (Playwright HAR recording)
        └── drift.json                    ← changes vs previous run
        └── report.html                   ← self-contained HTML report
 ```
+
+---
+
+## Prerequisites
+
+| Requirement | Version | Notes |
+|---|---|---|
+| [Node.js](https://nodejs.org) | ≥ 18.0.0 | Required |
+| [Playwright Chromium](https://playwright.dev) | any | Installed via `npx playwright install chromium` |
+| [StepCI](https://stepci.com) | any | Optional — replays the generated `stepci-workflow.yaml` regression suite |
+| [Schemathesis](https://schemathesis.io) | any | Optional — fuzzes your API using the generated `openapi.yaml` |
+
+**Installing optional tools:**
+```bash
+npm install -g stepci          # StepCI regression runner
+pip install schemathesis        # Schemathesis API fuzzer (requires Python)
+```
+
+The generated `openapi.yaml` can also be imported directly into **Postman** (File → Import) or **Swagger UI** without any additional tooling.
 
 ---
 
@@ -81,7 +104,8 @@ stepci run captures/checkout/stepci-workflow.yaml
 schemathesis run captures/checkout/openapi.yaml --url https://your-app.com --checks all
 
 # 5. Open the HTML report
-open captures/checkout/report.html
+open captures/checkout/report.html        # macOS
+xdg-open captures/checkout/report.html   # Linux
 ```
 
 ---
@@ -231,7 +255,7 @@ export default async function journey(page: Page, context: BrowserContext, confi
     SCANNER_PASSWORD: ${{ secrets.APP_PASSWORD }}
     SCANNER_HEADLESS: "true"
     SCANNER_SESSION: ci-run
-  run: specint --script scripts/my-journey.ts
+  run: specint start --script scripts/my-journey.ts
 
 - name: StepCI regression
   run: stepci run captures/ci-run/stepci-workflow.yaml
