@@ -383,7 +383,7 @@ async function startCommand(): Promise<void> {
   await context.close();
   await browser.close();
 
-  console.log(`\n  Captured ${requestCount} XHR/fetch requests total.`);
+  console.log(`\n  Captured ${requestCount} XHR/fetch requests (browser total).`);
   if (recordingWindows.length > 0) {
     console.log(
       `  Recording windows: ${recordingWindows.length} (paused ${recordingWindows.length - 1 > 0 ? recordingWindows.length - 1 + ' time(s)' : '0 times'})`
@@ -479,12 +479,11 @@ async function startCommand(): Promise<void> {
     generateHtmlReport(coverageSummary, anomalies, driftReport, runDir);
   }
 
-  console.log(`\nDone. Outputs in:\n  ${runDir}\n`);
+  const relDir = path.relative(process.cwd(), runDir);
+  console.log(`\nDone. Outputs in:\n  ${relDir}\n`);
   console.log('Next steps:');
-  console.log(
-    `  schemathesis run ${path.join(runDir, 'openapi.yaml')} --url ${baseUrl} --checks all`
-  );
-  console.log(`  stepci run ${path.join(runDir, 'stepci-workflow.yaml')}`);
+  console.log(`  schemathesis run ${relDir}/openapi.yaml --url ${baseUrl} --checks all`);
+  console.log(`  stepci run ${relDir}/stepci-workflow.yaml`);
 }
 
 // ---------------------------------------------------------------------------
