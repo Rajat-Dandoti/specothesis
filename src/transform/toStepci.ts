@@ -25,6 +25,7 @@ interface StepciStep {
 interface StepciWorkflow {
   version: string;
   name: string;
+  env?: Record<string, string>;
   tests: {
     captured_api_calls: {
       steps: StepciStep[];
@@ -184,12 +185,21 @@ function buildRequestBody(postData: HarEntry['request']['postData']): {
   return postData.text ? { body: postData.text } : {};
 }
 
-function entryToStep(entry: HarEntry, useCaptures = false, authScheme?: string): StepciStep {
+function entryToStep(
+  entry: HarEntry,
+  useCaptures = false,
+  authScheme?: string,
+  apiHost?: string
+): StepciStep {
   const { method, url, headers: reqHeaders, postData } = entry.request;
   const { status, content } = entry.response;
 
   const urlObj = new URL(url);
   const stepName = `${method} ${urlObj.pathname}`;
+  const stepUrl =
+    apiHost && urlObj.origin === apiHost
+      ? `\${{env.API_HOST}}${urlObj.pathname}${urlObj.search}`
+      : url;
 
   const isMultipart = (postData?.mimeType ?? '').toLowerCase().includes('multipart/form-data');
   const headers = buildHeaders(reqHeaders, {
@@ -203,7 +213,7 @@ function entryToStep(entry: HarEntry, useCaptures = false, authScheme?: string):
   const step: StepciStep = {
     name: stepName,
     http: {
-      url,
+      url: stepUrl,
       method,
       ...(headers ? { headers } : {}),
       ...bodyFields,
@@ -283,15 +293,27 @@ export function toStepci(
   authCfg: StepciAuthConfig
 ): void {
   const useCaptures = !!authUrl;
+
+  // Extract the API host from the first entry for the env block
+  let apiHost: string | undefined;
+  if (entries.length > 0) {
+    try {
+      apiHost = new URL(entries[0].request.url).origin;
+    } catch {
+      // leave undefined
+    }
+  }
+
   const steps: StepciStep[] = [];
 
   if (authUrl) steps.push(buildLoginStep(authUrl, authCfg));
 
-  steps.push(...entries.map((e) => entryToStep(e, useCaptures, authCfg.authScheme)));
+  steps.push(...entries.map((e) => entryToStep(e, useCaptures, authCfg.authScheme, apiHost)));
 
   const workflow: StepciWorkflow = {
     version: '1.1',
     name: `Captured journey - ${journeyName}`,
+    ...(apiHost ? { env: { API_HOST: apiHost } } : {}),
     tests: {
       captured_api_calls: {
         steps,
