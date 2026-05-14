@@ -44,12 +44,12 @@ import type { RecordingWindow } from './interactive.js';
 // ---------------------------------------------------------------------------
 
 const argv = minimist(process.argv.slice(2), {
-  string: ['url', 'out', 'filter', 'script', 'session', 'profile', 'save-profile', 'only'],
+  string: ['url', 'out', 'filter', 'script', 'session', 'profile', 'save-profile', 'only', 'har'],
   boolean: ['headless', 'help', 'list', 'version', 'quiet', 'include-failed'],
   alias: { h: 'help', v: 'version', q: 'quiet' },
 });
 
-const COMMAND = (argv._[0] as string | undefined) ?? 'start'; // 'login' | 'start' | 'list'
+const COMMAND = (argv._[0] as string | undefined) ?? 'start'; // 'login' | 'start' | 'list' | 'replay'
 
 if (argv.version) {
   const _require = createRequire(import.meta.url);
@@ -71,6 +71,7 @@ Commands:
   login   Open the browser, log in manually, then save the auth state as a
           reusable profile (cookies + localStorage).
   list    List saved profiles and recent sessions.
+  replay  Run the full pipeline on an existing HAR file — no browser needed.
 
 Options for  start:
   --url <url>            Starting URL  (env: SCANNER_BASE_URL)
@@ -88,6 +89,12 @@ Options for  start:
   --include-failed       Include requests that received no HTTP response (network errors, CORS
                          preflight failures, cancellations). Default: off. Env: SCANNER_CAPTURE_FAILED=true
   --version / -v         Print version and exit.
+
+Options for  replay:
+  --har <path>           Path to an existing HAR file (required)
+  --session <name>       Output folder name (default: HAR filename without extension)
+  --filter <glob>        URL filter — same as start  (default: **/api/**)
+  --only <outputs>       Same as start
 
 Options for  login:
   --url <url>            App URL to open for login
@@ -126,6 +133,10 @@ Examples:
 
   # Generate full HTML report suite (enables coverage, anomalies, drift, html)
   specint start --url https://app.com --only html
+
+  # Replay an existing HAR file (from Chrome DevTools, Postman, mitmproxy, etc.)
+  specint replay --har path/to/export.har --session my-session
+  specint replay --har captures/checkout/raw.har --only openapi
 `);
   process.exit(0);
 }
@@ -448,6 +459,21 @@ async function startCommand(): Promise<void> {
   }
 
   writeFilteredHar(har, apiEntries, filteredHarPath);
+  runPipeline(apiEntries, har, sessionName, runDir, baseUrl);
+}
+
+// ---------------------------------------------------------------------------
+// Shared pipeline (transforms + reports) — used by start and replay
+// ---------------------------------------------------------------------------
+
+function runPipeline(
+  apiEntries: ReturnType<typeof filterApiEntries>,
+  har: ReturnType<typeof readHar>,
+  sessionName: string,
+  runDir: string,
+  baseUrl: string
+): void {
+  const filteredHarPath = path.join(runDir, 'filtered.har');
 
   const authCfg = {
     authBodyFormat: config.authBodyFormat,
@@ -466,7 +492,8 @@ async function startCommand(): Promise<void> {
   if (config.features.stepci) toStepci(apiEntries, sessionName, runDir, config.authUrl, authCfg);
   if (config.features.curl) toCurl(apiEntries, runDir);
 
-  // Phases 2-5 all need the summary — build it once if any reporting feature is on
+  writeFilteredHar(har, apiEntries, filteredHarPath);
+
   const needsSummary =
     config.features.coverage ||
     config.features.anomalies ||
@@ -474,13 +501,11 @@ async function startCommand(): Promise<void> {
     config.features.htmlReport;
   const coverageSummary = needsSummary ? buildCoverageSummary(apiEntries, sessionName) : null;
 
-  // Phase 2 — Coverage map
   if (config.features.coverage && coverageSummary) {
     writeCoverageReport(coverageSummary, runDir);
     printCoverageTable(coverageSummary);
   }
 
-  // Phase 3 — Anomaly detection
   const anomalies =
     config.features.anomalies && coverageSummary
       ? detectAnomalies(coverageSummary, apiEntries, {
@@ -495,7 +520,6 @@ async function startCommand(): Promise<void> {
     printAnomalies(anomalies);
   }
 
-  // Phase 4 — Drift detection
   let driftReport = null;
   if (config.features.drift && coverageSummary) {
     const previousCoverage = loadPreviousCoverage(runDir);
@@ -506,7 +530,6 @@ async function startCommand(): Promise<void> {
     }
   }
 
-  // Phase 5 — HTML report
   if (config.features.htmlReport && coverageSummary) {
     generateHtmlReport(coverageSummary, anomalies, driftReport, runDir);
   }
@@ -519,6 +542,58 @@ async function startCommand(): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// replay command
+// ---------------------------------------------------------------------------
+
+async function replayCommand(): Promise<void> {
+  const harPath = argv['har'] as string | undefined;
+  if (!harPath) {
+    console.error('Error: --har <path> is required for the replay command');
+    process.exit(1);
+  }
+  if (!fs.existsSync(harPath)) {
+    console.error(`Error: HAR file not found: ${harPath}`);
+    process.exit(1);
+  }
+
+  const { urlFilter } = config;
+  const sessionName =
+    config.session || config.outName || path.basename(harPath, path.extname(harPath));
+  const baseUrl = config.baseUrl || config.apiUrl || '';
+
+  const runDir = makeSessionDir(sessionName);
+  console.log(`\n=== Specothesis — Replay ===`);
+  console.log(`  HAR:     ${harPath}`);
+  console.log(`  Filter:  ${urlFilter}`);
+  console.log(`  Output:  ${runDir}\n`);
+
+  const har = readHar(harPath);
+  let apiEntries = filterApiEntries(har, urlFilter, {
+    captureFailedRequests: config.captureFailedRequests,
+  });
+
+  if (apiEntries.length === 0) {
+    console.warn('  No API entries matched. Check --filter or widen the glob.');
+    process.exit(0);
+  }
+
+  console.log(`  Filtered to ${apiEntries.length} API entries. Generating outputs...\n`);
+
+  enrichHarEntries(apiEntries);
+
+  if (config.features.dedup) {
+    const before = apiEntries.length;
+    apiEntries = deduplicateEntries(apiEntries);
+    const dropped = before - apiEntries.length;
+    if (dropped > 0) {
+      console.log(`  Deduplicated: removed ${dropped} duplicate(s) (${apiEntries.length} unique remain).`);
+    }
+  }
+
+  runPipeline(apiEntries, har, sessionName, runDir, baseUrl);
+}
+
+// ---------------------------------------------------------------------------
 // Dispatch
 // ---------------------------------------------------------------------------
 
@@ -527,6 +602,8 @@ async function main(): Promise<void> {
     listCommand();
   } else if (COMMAND === 'login') {
     await loginCommand();
+  } else if (COMMAND === 'replay') {
+    await replayCommand();
   } else {
     await startCommand();
   }
