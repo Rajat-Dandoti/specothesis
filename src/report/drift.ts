@@ -28,29 +28,56 @@ export interface DriftReport {
 // ---------------------------------------------------------------------------
 
 /**
- * Given the current session directory, find the previous session's coverage.json.
+ * Given the current session directory, find the immediately previous session's coverage.json.
  *
  * Naming convention (from session.ts):
  *   First run  → captures/checkout/
  *   Second run → captures/checkout-2/
  *   Third run  → captures/checkout-3/
  *
- * Strategy: strip the trailing -N suffix to find the base name, then look for
- * captures/<base>/coverage.json. If this IS the base (no suffix), return null —
- * there is nothing to compare against yet.
+ * Strategy: find the highest-numbered sibling below the current run that has a coverage.json.
+ * checkout-5 compares against checkout-4 (not checkout).
+ * The base run (no suffix) has implicit number 1.
  */
 export function loadPreviousCoverage(currentDir: string): CoverageSummary | null {
   const capturesDir = path.dirname(currentDir);
   const currentName = path.basename(currentDir);
 
-  const baseName = currentName.replace(/-\d+$/, '');
-  if (baseName === currentName) return null; // this is already the base run
+  const match = currentName.match(/^(.+?)(-(\d+))?$/);
+  if (!match) return null;
+  const baseName = match[1];
+  const currentNum = match[3] ? parseInt(match[3]) : 1;
 
-  const prevPath = path.join(capturesDir, baseName, 'coverage.json');
-  if (!fs.existsSync(prevPath)) return null;
+  if (currentNum <= 1) return null; // base run — nothing to compare against
+
+  // Find all siblings with the same base name that have a coverage.json
+  let siblings: Array<{ name: string; num: number }>;
+  try {
+    siblings = fs
+      .readdirSync(capturesDir)
+      .filter((d) => d !== currentName)
+      .map((d) => {
+        const m = d.match(/^(.+?)(-(\d+))?$/);
+        if (!m || m[1] !== baseName) return null;
+        return { name: d, num: m[3] ? parseInt(m[3]) : 1 };
+      })
+      .filter((s): s is { name: string; num: number } => s !== null)
+      .filter((s) => fs.existsSync(path.join(capturesDir, s.name, 'coverage.json')));
+  } catch {
+    return null;
+  }
+
+  // Pick the highest-numbered sibling below current
+  const prev = siblings
+    .filter((s) => s.num < currentNum)
+    .sort((a, b) => b.num - a.num)[0];
+
+  if (!prev) return null;
 
   try {
-    return JSON.parse(fs.readFileSync(prevPath, 'utf-8')) as CoverageSummary;
+    return JSON.parse(
+      fs.readFileSync(path.join(capturesDir, prev.name, 'coverage.json'), 'utf-8')
+    ) as CoverageSummary;
   } catch {
     return null;
   }

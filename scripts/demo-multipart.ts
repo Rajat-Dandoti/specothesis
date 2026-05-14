@@ -8,7 +8,11 @@
 import type { Page, BrowserContext } from 'playwright';
 import type { ScannerConfig } from '../src/config.js';
 
-export default async function journey(page: Page, _context: BrowserContext, _config: ScannerConfig): Promise<void> {
+export default async function journey(
+  page: Page,
+  _context: BrowserContext,
+  _config: ScannerConfig
+): Promise<void> {
   await page.evaluate(async () => {
     const base = 'https://httpbin.org';
 

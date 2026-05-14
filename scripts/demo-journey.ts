@@ -11,7 +11,11 @@
 import type { Page, BrowserContext } from 'playwright';
 import type { ScannerConfig } from '../src/config.js';
 
-export default async function journey(page: Page, _context: BrowserContext, config: ScannerConfig): Promise<void> {
+export default async function journey(
+  page: Page,
+  _context: BrowserContext,
+  config: ScannerConfig
+): Promise<void> {
   // config.username, config.password, config.authToken, config.apiKey,
   // and config.extras are all available here for login flows etc.
   // Example: await page.fill('#username', config.username ?? '');
