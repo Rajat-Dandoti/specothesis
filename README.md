@@ -61,6 +61,15 @@ npm install -g specothesis
 npx playwright install chromium   # install the browser — required even if Playwright is already installed
 ```
 
+After the global install, the `specint` command is available everywhere:
+```bash
+specint --version   # should print the installed version
+specint --help
+```
+
+> **Why `npm install -g`?** A local install (`npm install specothesis`) works with `npx specint`
+> but won't put `specint` in your PATH. The global install is required for the bare `specint` command.
+
 > Playwright ships without browsers by default. `npx playwright install chromium` downloads
 > the Chromium binary that Specothesis uses to record traffic. If you already have Playwright
 > installed for another project, you may already have Chromium — but running this command is
