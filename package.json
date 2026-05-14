@@ -1,6 +1,6 @@
 {
   "name": "specothesis",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Capture API calls from Playwright browser sessions and export to OpenAPI, StepCI, curl, and coverage reports",
   "license": "MIT",
   "type": "module",
