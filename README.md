@@ -98,6 +98,15 @@ Set `SCANNER_BASE_URL` in `.env` to your app's URL. Everything else has sensible
 
 ## Quickstart
 
+> **URL filter:** By default only requests whose URL contains `/api/` are captured (`**/api/**`).
+> If your API uses a different path pattern, set `--filter` to match it:
+> ```bash
+> --filter "**/v1/**"      # match /v1/ paths
+> --filter "**"            # capture all XHR/fetch requests
+> --filter "https://api.example.com/**"   # match by host
+> ```
+> Set `SCANNER_URL_FILTER` in `.env` to avoid passing it every time.
+
 ```bash
 # 1. Save your login state once (skip if your app doesn't need auth)
 specint login --url https://your-app.com --save-profile myapp
@@ -106,7 +115,8 @@ specint login --url https://your-app.com --save-profile myapp
 specint start \
   --url https://your-app.com \
   --profile myapp \
-  --session checkout
+  --session checkout \
+  --filter "**/api/**"   # adjust this glob to match your API's URL pattern
 
 # 3. Run StepCI regression tests
 stepci run captures/checkout/stepci-workflow.yaml
@@ -218,6 +228,7 @@ specint --help   Full help and examples
 --session <name>     Output folder name        (env: SCANNER_SESSION)
 --profile <name>     Load saved auth profile   (env: SCANNER_PROFILE)
 --filter <glob>      URL capture filter        (env: SCANNER_URL_FILTER, default: **/api/**)
+                     Must match your API's URL pattern — if no entries match, outputs are skipped.
 --headless           Headless browser          (env: SCANNER_HEADLESS)
 --script <path>      Automation script
 --only <outputs>     Comma-separated outputs: openapi, stepci, curl, coverage, anomalies, drift, html
