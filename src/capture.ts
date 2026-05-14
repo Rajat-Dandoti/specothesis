@@ -458,7 +458,11 @@ async function startCommand(): Promise<void> {
   };
 
   if (config.features.openapi)
-    toOpenApi(apiEntries, runDir, config.apiUrl, config.authUrl, config.features.examples, authCfg);
+    toOpenApi(apiEntries, runDir, config.apiUrl, config.authUrl, config.features.examples, authCfg, {
+      title: config.apiTitle,
+      version: config.apiVersion,
+      description: config.apiDescription,
+    });
   if (config.features.stepci) toStepci(apiEntries, sessionName, runDir, config.authUrl, authCfg);
   if (config.features.curl) toCurl(apiEntries, runDir);
 
@@ -479,7 +483,12 @@ async function startCommand(): Promise<void> {
   // Phase 3 — Anomaly detection
   const anomalies =
     config.features.anomalies && coverageSummary
-      ? detectAnomalies(coverageSummary, apiEntries)
+      ? detectAnomalies(coverageSummary, apiEntries, {
+          publicPatterns: config.publicPatterns,
+          slowMs: config.anomalySlowMs,
+          largeKb: config.anomalyLargeKb,
+          repeatedN: config.anomalyRepeatedN,
+        })
       : [];
   if (config.features.anomalies && coverageSummary) {
     writeAnomalyReport(anomalies, runDir);

@@ -21,94 +21,104 @@ export interface Anomaly {
 // Public-path heuristic
 // ---------------------------------------------------------------------------
 
-const PUBLIC_KEYWORDS = ['login', 'signup', 'register', 'health', 'ping', 'status', 'public'];
+const BASE_PUBLIC_KEYWORDS = ['login', 'signup', 'register', 'health', 'ping', 'status', 'public'];
 
-function isPublicPath(p: string): boolean {
+function isPublicPath(p: string, extraPatterns: string[]): boolean {
   const lower = p.toLowerCase();
-  return PUBLIC_KEYWORDS.some((kw) => lower.includes(kw));
+  return [...BASE_PUBLIC_KEYWORDS, ...extraPatterns].some((kw) => lower.includes(kw));
 }
 
 // ---------------------------------------------------------------------------
 // Rule definitions
 // ---------------------------------------------------------------------------
 
+export interface AnomalyOpts {
+  publicPatterns?: string[];
+  slowMs?: number;
+  largeKb?: number;
+  repeatedN?: number;
+}
+
 interface Rule {
   id: string;
   severity: AnomalySeverity;
-  // Returns a message string if the rule fires, null otherwise.
-  // Receives both the aggregated endpoint coverage and all raw entries for that endpoint.
-  check(ep: EndpointCoverage, epEntries: HarEntry[]): string | null;
+  check(ep: EndpointCoverage, epEntries: HarEntry[], opts: AnomalyOpts): string | null;
 }
 
-const RULES: Rule[] = [
-  {
-    id: 'client-error',
-    severity: 'warn',
-    check(ep) {
-      const codes = ep.statusCodes.filter((s) => s >= 400 && s < 500);
-      if (codes.length === 0) return null;
-      return `Returned ${codes.join(', ')} during capture — was this expected?`;
+function buildRules(): Rule[] {
+  return [
+    {
+      id: 'client-error',
+      severity: 'warn',
+      check(ep) {
+        const codes = ep.statusCodes.filter((s) => s >= 400 && s < 500);
+        if (codes.length === 0) return null;
+        return `Returned ${codes.join(', ')} during capture — was this expected?`;
+      },
     },
-  },
-  {
-    id: 'server-error',
-    severity: 'warn',
-    check(ep) {
-      const codes = ep.statusCodes.filter((s) => s >= 500);
-      if (codes.length === 0) return null;
-      return `Returned ${codes.join(', ')} — server error during capture`;
+    {
+      id: 'server-error',
+      severity: 'warn',
+      check(ep) {
+        const codes = ep.statusCodes.filter((s) => s >= 500);
+        if (codes.length === 0) return null;
+        return `Returned ${codes.join(', ')} — server error during capture`;
+      },
     },
-  },
-  {
-    id: 'missing-auth',
-    severity: 'warn',
-    check(ep) {
-      if (ep.hasAuth) return null;
-      if (isPublicPath(ep.path)) return null;
-      return 'No Authorization header — is this endpoint public?';
+    {
+      id: 'missing-auth',
+      severity: 'warn',
+      check(ep, _entries, opts) {
+        if (ep.hasAuth) return null;
+        if (isPublicPath(ep.path, opts.publicPatterns ?? [])) return null;
+        return 'No Authorization header — is this endpoint public?';
+      },
     },
-  },
-  {
-    id: 'slow-response',
-    severity: 'info',
-    check(ep) {
-      if (ep.avgResponseMs <= 2000) return null;
-      return `Average response ${ep.avgResponseMs}ms — may indicate a slow query`;
+    {
+      id: 'slow-response',
+      severity: 'info',
+      check(ep, _entries, opts) {
+        const threshold = opts.slowMs ?? 2000;
+        if (ep.avgResponseMs <= threshold) return null;
+        return `Average response ${ep.avgResponseMs}ms — may indicate a slow query`;
+      },
     },
-  },
-  {
-    id: 'large-response',
-    severity: 'info',
-    check(_ep, epEntries) {
-      const LIMIT = 500 * 1024; // 500 kb in bytes
-      const large = epEntries.find((e) => e.response.bodySize > LIMIT);
-      if (!large) return null;
-      const kb = Math.round(large.response.bodySize / 1024);
-      return `Response body ${kb}kb — worth checking pagination`;
+    {
+      id: 'large-response',
+      severity: 'info',
+      check(_ep, epEntries, opts) {
+        const limit = (opts.largeKb ?? 500) * 1024;
+        const large = epEntries.find((e) => e.response.bodySize > limit);
+        if (!large) return null;
+        const kb = Math.round(large.response.bodySize / 1024);
+        return `Response body ${kb}kb — worth checking pagination`;
+      },
     },
-  },
-  {
-    id: 'repeated-calls',
-    severity: 'info',
-    check(ep) {
-      if (ep.callCount <= 5) return null;
-      return `Called ${ep.callCount} times — possible polling or pagination loop`;
+    {
+      id: 'repeated-calls',
+      severity: 'info',
+      check(ep, _entries, opts) {
+        const threshold = opts.repeatedN ?? 5;
+        if (ep.callCount <= threshold) return null;
+        return `Called ${ep.callCount} times — possible polling or pagination loop`;
+      },
     },
-  },
-];
+  ];
+}
 
 // ---------------------------------------------------------------------------
 // Detector
 // ---------------------------------------------------------------------------
 
-export function detectAnomalies(summary: CoverageSummary, entries: HarEntry[]): Anomaly[] {
+export function detectAnomalies(
+  summary: CoverageSummary,
+  entries: HarEntry[],
+  opts: AnomalyOpts = {}
+): Anomaly[] {
   const anomalies: Anomaly[] = [];
+  const rules = buildRules();
 
   for (const ep of summary.endpoints) {
-    // Collect raw entries that belong to this endpoint (matched by method + normalised path)
-    // We re-derive the key the same way coverage.ts does: method + normalised path.
-    // Rather than duplicating normalisation logic here, we filter by the method and
-    // check that the normalised path suffix matches by testing the endpoint's stored path.
     const epEntries = entries.filter((e) => {
       if (e.request.method.toUpperCase() !== ep.method) return false;
       try {
@@ -119,9 +129,9 @@ export function detectAnomalies(summary: CoverageSummary, entries: HarEntry[]): 
       }
     });
 
-    for (const rule of RULES) {
+    for (const rule of rules) {
       try {
-        const message = rule.check(ep, epEntries);
+        const message = rule.check(ep, epEntries, opts);
         if (message) {
           anomalies.push({
             severity: rule.severity,
