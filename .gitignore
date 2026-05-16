@@ -14,6 +14,9 @@ profiles/
 # TypeScript incremental build info
 *.tsbuildinfo
 
+# Test coverage output
+coverage/
+
 # Editor
 .vscode/
 .idea/
