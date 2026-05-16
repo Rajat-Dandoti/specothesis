@@ -4,7 +4,7 @@ import { createRequire } from 'module';
 import { chromium } from 'playwright';
 import minimist from 'minimist';
 import { resolveConfig, validateConfig, type ScannerConfig, type ScannerFeatures } from './config.js';
-import { ConfigError, CaptureError } from './errors.js';
+import { ConfigError, CaptureError, TransformError } from './errors.js';
 import {
   readHar,
   filterApiEntries,
@@ -645,6 +645,10 @@ async function main(): Promise<void> {
 main().catch((err) => {
   if (err instanceof ConfigError) {
     console.error(`\nConfiguration error: ${err.message}\n`);
+  } else if (err instanceof CaptureError) {
+    console.error(`\nCapture error: ${err.message}\n`);
+  } else if (err instanceof TransformError) {
+    console.error(`\nTransform error: ${err.message}\n`);
   } else {
     console.error('Fatal error:', err);
   }

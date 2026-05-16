@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { HarEntry } from '../utils/harFilter.js';
 import { isSensitiveKey, redactObject } from '../utils/redact.js';
+import { TransformError } from '../errors.js';
 
 // ---------------------------------------------------------------------------
 // Header policy: preserve all non-noisy headers; replace Authorization value
@@ -137,14 +138,22 @@ export function toCurl(entries: HarEntry[], outDir: string, redact = true): void
     const cmd = toCurlCommand(entry, redact);
     const shContent = `#!/usr/bin/env bash\n\n${cmd}\n`;
 
-    fs.writeFileSync(path.join(curlsDir, fileName), shContent, 'utf-8');
+    try {
+      fs.writeFileSync(path.join(curlsDir, fileName), shContent, 'utf-8');
+    } catch (err) {
+      throw new TransformError(`Failed to write curl script ${fileName}: ${err instanceof Error ? err.message : err}`);
+    }
 
     combined.push(`# ${num} ${entry.request.method} ${urlObj.pathname}`);
     combined.push(cmd);
     combined.push('');
   }
 
-  fs.writeFileSync(path.join(curlsDir, 'requests.sh'), combined.join('\n'), 'utf-8');
+  try {
+    fs.writeFileSync(path.join(curlsDir, 'requests.sh'), combined.join('\n'), 'utf-8');
+  } catch (err) {
+    throw new TransformError(`Failed to write requests.sh to ${curlsDir}: ${err instanceof Error ? err.message : err}`);
+  }
 
   console.log(`  [curl]    ${curlsDir}/ (${entries.length} requests + requests.sh)`);
 }

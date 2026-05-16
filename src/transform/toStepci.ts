@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as yaml from 'js-yaml';
 import type { HarEntry } from '../utils/harFilter.js';
 import { AUTH_ENV_REFS, type AuthBodyFormat } from '../config.js';
+import { TransformError } from '../errors.js';
 import { isSensitiveKey, redactObject } from '../utils/redact.js';
 
 interface StepciStep {
@@ -324,7 +325,11 @@ export function toStepci(
   };
 
   const outPath = path.join(outDir, 'stepci-workflow.yaml');
-  fs.writeFileSync(outPath, yaml.dump(workflow, { lineWidth: 120, quotingType: '"' }), 'utf-8');
+  try {
+    fs.writeFileSync(outPath, yaml.dump(workflow, { lineWidth: 120, quotingType: '"' }), 'utf-8');
+  } catch (err) {
+    throw new TransformError(`Failed to write StepCI workflow to ${outPath}: ${err instanceof Error ? err.message : err}`);
+  }
 
   console.log(`  [stepci]  ${outPath}`);
 }

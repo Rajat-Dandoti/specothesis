@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as yaml from 'js-yaml';
 import type { HarEntry } from '../utils/harFilter.js';
 import type { AuthBodyFormat } from '../config.js';
+import { TransformError } from '../errors.js';
 import { isSensitiveKey, redactObject } from '../utils/redact.js';
 
 // ---------------------------------------------------------------------------
@@ -470,8 +471,12 @@ export function toOpenApi(
   const jsonPath = path.join(outDir, 'openapi.json');
   const yamlPath = path.join(outDir, 'openapi.yaml');
 
-  fs.writeFileSync(jsonPath, JSON.stringify(spec, null, 2), 'utf-8');
-  fs.writeFileSync(yamlPath, yaml.dump(spec, { lineWidth: 120 }), 'utf-8');
+  try {
+    fs.writeFileSync(jsonPath, JSON.stringify(spec, null, 2), 'utf-8');
+    fs.writeFileSync(yamlPath, yaml.dump(spec, { lineWidth: 120 }), 'utf-8');
+  } catch (err) {
+    throw new TransformError(`Failed to write OpenAPI spec to ${outDir}: ${err instanceof Error ? err.message : err}`);
+  }
 
   console.log(`  [openapi] ${jsonPath}`);
   console.log(`  [openapi] ${yamlPath}`);
