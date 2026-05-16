@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import * as os from 'os';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as yaml from 'js-yaml';
 import { normalisePath, inferSchema, toOpenApi } from '../../src/transform/toOpenApi.js';
 import type { HarEntry } from '../../src/utils/harFilter.js';
 
