@@ -3,7 +3,8 @@ import * as path from 'path';
 import { createRequire } from 'module';
 import { chromium } from 'playwright';
 import minimist from 'minimist';
-import { resolveConfig, validateConfig, type ScannerConfig, type ScannerFeatures } from './config.js';
+import { resolveConfig, validateConfig, type ScannerConfig } from './config.js';
+import { resolveOnlyFlag } from './args.js';
 import { ConfigError, CaptureError, TransformError } from './errors.js';
 import {
   readHar,
@@ -145,74 +146,14 @@ Examples:
 // Config
 // ---------------------------------------------------------------------------
 
-const VALID_ONLY_VALUES = [
-  'openapi',
-  'stepci',
-  'curl',
-  'coverage',
-  'anomalies',
-  'drift',
-  'html',
-] as const;
-type OnlyValue = (typeof VALID_ONLY_VALUES)[number];
-
 function applyOnlyFlag(cfg: ScannerConfig, only: string): ScannerConfig {
-  const requested = only
-    .split(',')
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean) as OnlyValue[];
-
-  const invalid = requested.filter((v) => !(VALID_ONLY_VALUES as readonly string[]).includes(v));
-  if (invalid.length > 0) {
-    console.error(`Error: unknown --only value(s): ${invalid.join(', ')}`);
-    console.error(`Valid values: ${VALID_ONLY_VALUES.join(', ')}`);
+  try {
+    const features = resolveOnlyFlag(only, cfg.features);
+    return { ...cfg, features };
+  } catch (err) {
+    console.error(`Error: ${err instanceof Error ? err.message : err}`);
     process.exit(1);
   }
-
-  // Zero all output flags; preserve dedup and examples (not output selectors)
-  const features: ScannerFeatures = {
-    dedup: cfg.features.dedup,
-    examples: cfg.features.examples,
-    redact: cfg.features.redact,
-    openapi: false,
-    stepci: false,
-    curl: false,
-    coverage: false,
-    anomalies: false,
-    drift: false,
-    htmlReport: false,
-  };
-
-  for (const v of requested) {
-    if (v === 'openapi') {
-      features.openapi = true;
-    }
-    if (v === 'stepci') {
-      features.stepci = true;
-    }
-    if (v === 'curl') {
-      features.curl = true;
-    }
-    if (v === 'coverage') {
-      features.coverage = true;
-    }
-    if (v === 'anomalies') {
-      features.anomalies = true;
-      features.coverage = true;
-    }
-    if (v === 'drift') {
-      features.drift = true;
-      features.coverage = true;
-    }
-    if (v === 'html') {
-      features.htmlReport = true;
-      features.coverage = true;
-      features.anomalies = true;
-      features.drift = true;
-    }
-  }
-
-  return { ...cfg, features };
 }
 
 let config = resolveConfig({

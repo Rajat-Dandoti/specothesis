@@ -115,3 +115,21 @@ describe('deduplicateEntries', () => {
     expect(deduplicateEntries(entries)).toHaveLength(2);
   });
 });
+
+describe('filterApiEntries — failed requests (status=-1)', () => {
+  it('excludes entry with status=-1 when captureFailedRequests=false', () => {
+    const entry = makeEntry({ url: 'https://api.example.com/api/users' });
+    entry.response.status = -1;
+    const har = makeHar([entry]);
+    const result = filterApiEntries(har, '**/api/**', { captureFailedRequests: false });
+    expect(result).toHaveLength(0);
+  });
+
+  it('includes entry with status=-1 when captureFailedRequests=true', () => {
+    const entry = makeEntry({ url: 'https://api.example.com/api/users' });
+    entry.response.status = -1;
+    const har = makeHar([entry]);
+    const result = filterApiEntries(har, '**/api/**', { captureFailedRequests: true });
+    expect(result).toHaveLength(1);
+  });
+});

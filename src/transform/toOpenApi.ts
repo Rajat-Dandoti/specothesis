@@ -12,7 +12,7 @@ import { isSensitiveKey, redactObject } from '../utils/redact.js';
 
 type JsonSchema = Record<string, unknown>;
 
-function inferSchema(value: unknown, withExample = false): JsonSchema {
+export function inferSchema(value: unknown, withExample = false): JsonSchema {
   const ex = (v: unknown) => (withExample ? { example: v } : {});
   if (value === null) return { type: 'string', nullable: true, ...ex(null) };
   if (typeof value === 'boolean') return { type: 'boolean', ...ex(value) };
@@ -144,7 +144,7 @@ function deriveTag(pathTemplate: string): string | undefined {
   );
 }
 
-function normalisePath(pathname: string): { template: string; paramNames: string[] } {
+export function normalisePath(pathname: string): { template: string; paramNames: string[] } {
   const paramNames: string[] = [];
   const seen = new Map<string, number>();
   const segments = pathname.split('/');

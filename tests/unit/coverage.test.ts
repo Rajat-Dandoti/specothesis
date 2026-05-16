@@ -86,4 +86,33 @@ describe('buildCoverageSummary', () => {
     const summary = buildCoverageSummary(entries, 'test');
     expect(summary.uniqueEndpoints).toBe(2);
   });
+
+  it('handles entry with no response headers — sets auth:false without crashing', () => {
+    // Build an entry that has an empty headers array (no authorization header)
+    const entry: Parameters<typeof buildCoverageSummary>[0][number] = {
+      startedDateTime: '2026-05-13T10:00:00.000Z',
+      time: 50,
+      _resourceType: 'fetch',
+      request: {
+        method: 'GET',
+        url: 'https://api.example.com/api/v1/empty-headers',
+        headers: [],
+        queryString: [],
+        bodySize: 0,
+        headersSize: 0,
+      },
+      response: {
+        status: 200,
+        statusText: 'OK',
+        headers: [],
+        content: { size: 0, mimeType: 'application/json' },
+        bodySize: 0,
+        headersSize: 0,
+      },
+    };
+    expect(() => {
+      const summary = buildCoverageSummary([entry], 'test');
+      expect(summary.endpoints[0].hasAuth).toBe(false);
+    }).not.toThrow();
+  });
 });

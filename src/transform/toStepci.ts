@@ -123,7 +123,7 @@ function buildJsonpathChecks(
  *   - multipart/form-data    → formData: (text fields inline; file fields as path placeholders)
  *   - anything else          → body: (raw string)
  */
-function buildRequestBody(postData: HarEntry['request']['postData'], redact = true): {
+export function buildRequestBody(postData: HarEntry['request']['postData'], redact = true): {
   json?: unknown;
   form?: Record<string, string>;
   formData?: Record<string, unknown>;

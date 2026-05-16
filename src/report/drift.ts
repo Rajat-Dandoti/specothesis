@@ -98,9 +98,13 @@ function statusSetEqual(a: number[], b: number[]): boolean {
   return sa.every((v, i) => v === sb[i]);
 }
 
-export function detectDrift(current: CoverageSummary, previous: CoverageSummary): DriftReport {
-  const prevMap = new Map<string, EndpointCoverage>(
-    previous.endpoints.map((ep) => [endpointKey(ep), ep])
+/**
+ * Pure comparison of two coverage summaries — returns a DriftReport with no
+ * file I/O side-effects. Exported for unit testing.
+ */
+export function computeDrift(baseline: CoverageSummary, current: CoverageSummary): DriftReport {
+  const baseMap = new Map<string, EndpointCoverage>(
+    baseline.endpoints.map((ep) => [endpointKey(ep), ep])
   );
   const currMap = new Map<string, EndpointCoverage>(
     current.endpoints.map((ep) => [endpointKey(ep), ep])
@@ -110,15 +114,15 @@ export function detectDrift(current: CoverageSummary, previous: CoverageSummary)
   const removed: EndpointDrift[] = [];
   const changed: EndpointDrift[] = [];
 
-  // Added — in current but not in previous
+  // Added — in current but not in baseline
   for (const [key, ep] of currMap) {
-    if (!prevMap.has(key)) {
+    if (!baseMap.has(key)) {
       added.push({ type: 'added', endpoint: `${ep.method} ${ep.path}` });
     }
   }
 
-  // Removed — in previous but not in current
-  for (const [key, ep] of prevMap) {
+  // Removed — in baseline but not in current
+  for (const [key, ep] of baseMap) {
     if (!currMap.has(key)) {
       removed.push({ type: 'removed', endpoint: `${ep.method} ${ep.path}` });
     }
@@ -126,19 +130,19 @@ export function detectDrift(current: CoverageSummary, previous: CoverageSummary)
 
   // Changed — same key, different status codes or auth presence
   for (const [key, curr] of currMap) {
-    const prev = prevMap.get(key);
-    if (!prev) continue;
+    const base = baseMap.get(key);
+    if (!base) continue;
 
     const details: string[] = [];
 
-    if (!statusSetEqual(curr.statusCodes, prev.statusCodes)) {
+    if (!statusSetEqual(curr.statusCodes, base.statusCodes)) {
       details.push(
-        `status codes: [${prev.statusCodes.join(', ')}] → [${curr.statusCodes.join(', ')}]`
+        `status codes: [${base.statusCodes.join(', ')}] → [${curr.statusCodes.join(', ')}]`
       );
     }
 
-    if (curr.hasAuth !== prev.hasAuth) {
-      const was = prev.hasAuth ? 'authenticated' : 'unauthenticated';
+    if (curr.hasAuth !== base.hasAuth) {
+      const was = base.hasAuth ? 'authenticated' : 'unauthenticated';
       const now = curr.hasAuth ? 'authenticated' : 'unauthenticated';
       details.push(`auth: ${was} → ${now}`);
     }
@@ -153,13 +157,17 @@ export function detectDrift(current: CoverageSummary, previous: CoverageSummary)
   }
 
   return {
-    baseSession: previous.sessionName,
+    baseSession: baseline.sessionName,
     compareSession: current.sessionName,
     hasChanges: added.length > 0 || removed.length > 0 || changed.length > 0,
     added,
     removed,
     changed,
   };
+}
+
+export function detectDrift(current: CoverageSummary, previous: CoverageSummary): DriftReport {
+  return computeDrift(previous, current);
 }
 
 // ---------------------------------------------------------------------------

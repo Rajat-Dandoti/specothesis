@@ -142,3 +142,24 @@ describe('anomalies — repeated-calls rule', () => {
     expect(anomalies.some((a) => a.rule === 'repeated-calls')).toBe(false);
   });
 });
+
+describe('anomalies — missing-auth + SCANNER_PUBLIC_PATTERNS', () => {
+  it('suppresses missing-auth when path matches a custom public pattern', () => {
+    // "/api/v1/metrics" contains "metrics" — pass it as publicPatterns
+    const ep = makeEndpoint({ hasAuth: false, path: '/api/v1/metrics' });
+    const entry = makeEntry({ url: 'https://api.example.com/api/v1/metrics', hasAuth: false });
+    const anomalies = detectAnomalies(makeSummary([ep]), [entry], {
+      publicPatterns: ['metrics'],
+    });
+    expect(anomalies.some((a) => a.rule === 'missing-auth')).toBe(false);
+  });
+
+  it('still fires missing-auth when path does NOT match the custom public pattern', () => {
+    const ep = makeEndpoint({ hasAuth: false, path: '/api/v1/orders' });
+    const entry = makeEntry({ url: 'https://api.example.com/api/v1/orders', hasAuth: false });
+    const anomalies = detectAnomalies(makeSummary([ep]), [entry], {
+      publicPatterns: ['metrics'],
+    });
+    expect(anomalies.some((a) => a.rule === 'missing-auth')).toBe(true);
+  });
+});
