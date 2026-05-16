@@ -32,13 +32,28 @@ Browser (Playwright)
 ## Module Responsibilities
 
 ### `capture.ts`
-Entry point and command dispatcher. Owns the CLI argument parsing, browser lifecycle, and the sequencing of all pipeline stages. Three commands: `start`, `login`, `list`. No business logic lives here — it delegates immediately to the relevant module.
+Thin CLI dispatcher. Parses `process.argv`, builds config via `resolveConfig`, validates, then dispatches to the matching command module via dynamic `import()`. No business logic — all command logic lives in `src/commands/`.
 
 ### `args.ts`
-CLI argument parsing and `--only` flag resolution. `resolveOnlyFlag(str, baseFeatures)` parses a comma-separated `--only` value into a `ScannerFeatures` object with implied dependencies wired up (e.g. `anomalies` implies `coverage`, `html` implies `coverage + anomalies + drift`). Extracted from `capture.ts` to be independently testable. `capture.ts` imports and delegates to it.
+CLI argument parsing and `--only` flag resolution. `resolveOnlyFlag(str, baseFeatures)` parses a comma-separated `--only` value into a `ScannerFeatures` object with implied dependencies wired up (e.g. `anomalies` implies `coverage`, `html` implies `coverage + anomalies + drift`). Extracted from `capture.ts` to be independently testable.
+
+### `commands/start.ts`
+Browser capture flow. Opens Playwright, injects the form-data capture script, runs the automation script or the interactive loop, then calls `runPipeline` with the captured entries.
+
+### `commands/login.ts`
+Login-only flow. Opens the browser, waits for the user's save signal, writes Playwright `storageState` to `profiles/<name>.json`.
+
+### `commands/list.ts`
+Reads `profiles/` and `captures/` from the filesystem and prints a formatted summary.
+
+### `commands/replay.ts`
+Reads an existing HAR file from disk and calls `runPipeline` — no browser lifecycle involved.
+
+### `pipeline.ts`
+`runPipeline(opts: PipelineOptions)` — the shared post-capture step sequence. Accepts `{ apiEntries, sessionName, runDir, config }`. Filters, deduplicates, writes `filtered.har`, then runs all enabled transforms (`toOpenApi`, `toStepci`, `toCurl`) and reports (`coverage`, `anomalies`, `drift`, `htmlReport`). Called by both `commands/start.ts` and `commands/replay.ts`.
 
 ### `config.ts`
-Single source of truth for all configuration. Loads `.env`, reads environment variables, and merges CLI overrides. Exports `resolveConfig()` which CLI callers use to produce a fully-resolved `ScannerConfig`. Also exports `AUTH_ENV_REFS` — the mapping from lowercase header names to their StepCI env variable references (`authorization → ${{env.SCANNER_AUTH_TOKEN}}`).
+Single source of truth for all configuration. Loads `.env`, reads environment variables, and merges CLI overrides. Exports `resolveConfig()` which CLI callers use to produce a fully-resolved `ScannerConfig`. Also exports `AUTH_ENV_REFS` — the mapping from lowercase header names to their StepCI env variable references (`authorization → ${{env.SCANNER_AUTH_TOKEN}}`). `redact` is a top-level field on `ScannerConfig` (not inside `ScannerFeatures`) since it's a behaviour modifier, not an output toggle.
 
 **Priority order:** CLI flags > env vars > .env file > hardcoded defaults.
 
@@ -62,8 +77,11 @@ Fixes Playwright's multipart body representation. Playwright records multipart b
 ### `utils/formDataCapture.ts`
 Solves the CDP multipart body capture problem. Chrome's CDP does not expose multipart request bodies in HAR files at all — `bodySize` is 0, `postData` is missing. The fix: inject a self-contained IIFE into the page before any requests fire that monkey-patches `window.fetch` and `XMLHttpRequest.send`. The patch serializes `FormData` fields into `window.__apiScannerFd[]`. Capture errors from the injected script are accumulated in `window.__apiScannerErrors[]` and surfaced back to Node as warnings. After the session ends, `collectCapturedFormData()` reads that array from the browser and `mergeFormDataIntoHar()` correlates the entries back to HAR entries by method + URL + timestamp proximity (15-second window, FIFO queue per endpoint).
 
+### `utils/pathNormalise.ts`
+Shared `ID_SEGMENT` regex used by both `coverage.ts` and `toOpenApi.ts` to agree on which path segments are dynamic (integers, UUIDs, 24-char MongoDB ObjectIds). Previously each module had its own diverging regex, causing edge cases where coverage keys and OpenAPI path templates disagreed on the same URL. Importing from a single source eliminates that class of mismatch.
+
 ### `utils/redact.ts`
-Key-name-based secret redaction applied at the transform layer (not HAR layer). `isSensitiveKey(key)` normalises the key (lowercase, strips `-`/`_`/`.`) and checks against a set of known sensitive names (`password`, `token`, `apikey`, `secret`, `credential`, `otp`, etc.). `redactObject(obj)` walks an arbitrary JSON value and replaces matching leaf values with `[REDACTED]`. `redactKnownSecrets(text, secrets)` does substring replacement for known literal values. Called by all three transform modules when `redact=true` (default).
+Key-name-based secret redaction applied at the transform layer (not HAR layer). `isSensitiveKey(key)` uses segment-aware matching: splits on `-`/`_`/`.` separators and checks the last segment against `SENSITIVE_SUFFIXES` — preventing false positives like `tokenCount` or `apikeystatus` while still catching `access_token`, `client-secret`, `X-Api-Key`. `redactObject(obj)` walks an arbitrary JSON value and replaces matching leaf values with `[REDACTED]`. Called by all three transform modules when `redact=true` (default, controlled by `SCANNER_ENABLE_REDACTION`).
 
 ### `transform/toOpenApi.ts`
 Generates OpenAPI 3.0.3 spec from `HarEntry[]`. Key behaviors:

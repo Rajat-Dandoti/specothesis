@@ -62,8 +62,6 @@ export interface ScannerFeatures {
   drift: boolean;
   /** Phase 5 — write report.html */
   htmlReport: boolean;
-  /** Redact sensitive field values (passwords, tokens, keys) in all generated outputs */
-  redact: boolean;
 }
 
 export type AuthMethod = 'bearer-login' | 'bearer-static' | 'api-key' | 'basic' | 'none';
@@ -135,6 +133,8 @@ export interface ScannerConfig {
   // --- Feature flags ---
   /** Toggle individual outputs and post-processing steps on/off */
   features: ScannerFeatures;
+  /** Redact sensitive field values (passwords, tokens, keys) in all generated outputs */
+  redact: boolean;
 
   // --- OpenAPI info ---
   /** Title field in the generated OpenAPI spec info block */
@@ -164,6 +164,9 @@ export interface ScannerConfig {
    */
   captureFailedRequests: boolean;
 }
+
+const VALID_AUTH_METHODS: AuthMethod[] = ['bearer-login', 'bearer-static', 'api-key', 'basic', 'none'];
+const VALID_AUTH_BODY_FORMATS: AuthBodyFormat[] = ['form', 'json', 'formData'];
 
 // ---------------------------------------------------------------------------
 // Env-based defaults (before CLI override)
@@ -204,6 +207,7 @@ export const defaultConfig: ScannerConfig = {
   extras: Object.fromEntries(
     Object.entries(process.env)
       .filter(([k]) => k.startsWith('SCANNER_EXTRA_'))
+      .filter(([, v]) => v !== undefined)
       .map(([k, v]) => [k.replace(/^SCANNER_EXTRA_/, ''), v as string])
   ),
 
@@ -217,8 +221,8 @@ export const defaultConfig: ScannerConfig = {
     anomalies: envBool('SCANNER_ENABLE_ANOMALIES', true),
     drift: envBool('SCANNER_ENABLE_DRIFT', true),
     htmlReport: envBool('SCANNER_ENABLE_HTML_REPORT', true),
-    redact: envBool('SCANNER_ENABLE_REDACTION', true),
   },
+  redact: envBool('SCANNER_ENABLE_REDACTION', true),
 
   apiTitle: env('SCANNER_API_TITLE') ?? 'Captured API',
   apiVersion: env('SCANNER_API_VERSION') ?? '1.0.0',
@@ -248,9 +252,6 @@ export function resolveConfig(cliOverrides: Partial<ScannerConfig>): ScannerConf
     ),
   };
 }
-
-const VALID_AUTH_METHODS: AuthMethod[] = ['bearer-login', 'bearer-static', 'api-key', 'basic', 'none'];
-const VALID_AUTH_BODY_FORMATS: AuthBodyFormat[] = ['form', 'json', 'formData'];
 
 /**
  * Validate config at startup and throw ConfigError with a clear message on
@@ -290,6 +291,11 @@ export function validateConfig(config: ScannerConfig): void {
     throw new ConfigError(
       `SCANNER_AUTH_TOKEN_PATH must start with "$." (e.g. $.access_token). Got: "${config.authTokenPath}"`
     );
+  }
+
+  if (config.apiUrl) {
+    try { new URL(config.apiUrl); }
+    catch { throw new ConfigError(`SCANNER_API_URL is not a valid URL: ${config.apiUrl}`); }
   }
 }
 

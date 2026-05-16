@@ -172,6 +172,10 @@ tr:hover td{background:#111}
 footer{color:#2a2a2a;font-size:11px;margin-top:32px;border-top:1px solid #1a1a1a;padding-top:8px}
 `.trim();
 
+// ---------------------------------------------------------------------------
+// JS — table sort widget
+// ---------------------------------------------------------------------------
+
 const JS = `
 (function(){
   var t=document.getElementById('cov');

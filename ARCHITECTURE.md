@@ -52,22 +52,29 @@ openapi.yaml
 
 | Module | Responsibility |
 |---|---|
-| `capture.ts` | CLI entry point. Owns browser lifecycle and pipeline sequencing. Delegates arg parsing to `args.ts` and config resolution to `config.ts`. No business logic. |
+| `capture.ts` | Thin CLI dispatcher. Parses args, builds config, validates, then delegates to the matching command module via dynamic import. No business logic. |
 | `args.ts` | CLI argument parsing. `resolveOnlyFlag(str, baseFeatures)` resolves the `--only` flag into a `ScannerFeatures` object with implied dependencies (e.g. `anomalies` → `coverage`). |
 | `config.ts` | Single source of truth for all configuration. `resolveConfig()` merges CLI flags > env vars > `.env` > defaults. Exports `AUTH_ENV_REFS` (header name → StepCI env var reference). |
+| `pipeline.ts` | `runPipeline(opts)` — shared post-capture step: filters, deduplicates, writes HAR, runs all transforms and reports. Called by both `commands/start.ts` and `commands/replay.ts`. |
+| `commands/start.ts` | Browser capture flow: opens Playwright, injects form-data capture, runs script or interactive loop, then calls `runPipeline`. |
+| `commands/login.ts` | Login flow: opens browser, waits for save signal, writes Playwright `storageState` to `profiles/`. |
+| `commands/list.ts` | Lists saved profiles and recent sessions from the filesystem. |
+| `commands/replay.ts` | Reads an existing HAR file and calls `runPipeline` — no browser needed. |
 | `session.ts` | Filesystem for profiles and sessions. `makeSessionDir` handles auto-increment (`checkout`, `checkout-2`, …). |
 | `interactive.ts` | Readline-based `p` / `r` / `q` loop. Returns `RecordingWindow[]` — the active time intervals used downstream to filter HAR entries. |
-| `utils/harFilter.ts` | Core HAR types (`HarEntry`, `Har`) and filtering: URL glob, resource type, window filter, deduplication. |
+| `utils/harFilter.ts` | Core HAR types (`HarEntry`, `Har`) and filtering: URL glob (compiled once per call), resource type, window filter, URL validation, deduplication. |
 | `utils/harNormalize.ts` | Multipart boundary text parser. Playwright records multipart bodies as raw text; `enrichHarEntries()` converts them to structured `params[]` in-place. |
 | `utils/formDataCapture.ts` | CDP multipart workaround. Chrome CDP omits multipart bodies entirely. An IIFE injected via `context.addInitScript` patches `window.fetch` and `XHR.send` to capture `FormData` fields into `window.__apiScannerFd[]`. After the session, `mergeFormDataIntoHar()` correlates them back by method + URL + timestamp. |
-| `transform/toOpenApi.ts` | Generates OpenAPI 3.0.3. Groups entries by `method + normalised path`; last entry per group wins. Infers JSON Schema from bodies. Parameterises numeric/UUID path segments. Builds a login operation from `authUrl` if provided. |
-| `transform/toStepci.ts` | Generates StepCI YAML. Skips noisy headers via `SKIP_HEADERS`. Replaces auth values with env-var references. When `authUrl` is set, prepends a login step and wires subsequent steps to `${{captures.token}}`. |
-| `transform/toCurl.ts` | Generates shell scripts. One `.sh` per request + `requests.sh`. Keeps only `Authorization` (replaced by `$SCANNER_AUTH_TOKEN`). |
-| `report/coverage.ts` | Aggregates `HarEntry[]` into `CoverageSummary` grouped by normalised path. Tracks: status codes, call count, auth presence, response times, body sizes. |
-| `report/anomalies.ts` | Runs six `Rule` objects over the coverage summary + raw entries. Returns `Anomaly[]`. Rules: `client-error`, `server-error`, `missing-auth`, `slow-response`, `large-response`, `repeated-calls`. |
-| `report/drift.ts` | Compares current `CoverageSummary` to the previous baseline session. Detects added/removed endpoints and status-code or auth-presence changes. |
+| `utils/pathNormalise.ts` | Shared `ID_SEGMENT` regex (integers, UUIDs, 24-char ObjectIds) used by both `coverage.ts` and `toOpenApi.ts` to agree on which path segments are dynamic. |
+| `utils/redact.ts` | Key-name-based secret redaction. `isSensitiveKey()` uses segment-aware matching to avoid false positives (e.g. `tokenCount` no longer matches). `redactObject()` walks JSON trees. |
+| `transform/toOpenApi.ts` | Generates OpenAPI 3.0.3. Groups entries by `method + normalised path`; emits a warning on duplicates. Sorts groups for deterministic `operationId` assignment. Builds a login operation from `authUrl` if provided. |
+| `transform/toStepci.ts` | Generates StepCI YAML. Skips noisy headers via `SKIP_HEADERS`. Replaces auth values with env-var references. When `authUrl` is set, prepends a login step and excludes the auth endpoint from regular steps. |
+| `transform/toCurl.ts` | Generates shell scripts. One `.sh` per request + `requests.sh`. Keeps all non-noisy headers; replaces `Authorization` value with `$SCANNER_AUTH_TOKEN`. |
+| `report/coverage.ts` | Aggregates `HarEntry[]` into `CoverageSummary` grouped by normalised path. Uses shared `ID_SEGMENT` from `pathNormalise.ts`. |
+| `report/anomalies.ts` | Runs six `Rule` objects over the coverage summary + raw entries. `buildRules()` is called once per pipeline run. Rules: `client-error`, `server-error`, `missing-auth`, `slow-response`, `large-response`, `repeated-calls`. |
+| `report/drift.ts` | Compares current `CoverageSummary` to the previous baseline. Pure logic in exported `computeDrift(baseline, current)`; file I/O in `detectDrift`. |
 | `report/htmlReport.ts` | Self-contained HTML report (inline CSS + JS). `generateHtmlReport()` for session report; `generateSchemaHtmlReport()` for schemathesis failures. |
-| `report/schemaManifest.ts` | Regex-based JUnit XML parser tuned for schemathesis output. Extracts operation name, failure messages, status codes, reproduce-curl commands. |
+| `report/schemaManifest.ts` | Regex-based JUnit XML parser tuned for schemathesis output. Handles HTML entities including hex (`&#xNNNN;`) forms. |
 
 ---
 

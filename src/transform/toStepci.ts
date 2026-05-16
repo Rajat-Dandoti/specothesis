@@ -307,11 +307,18 @@ export function toStepci(
     }
   }
 
+  const filteredEntries = authUrl
+    ? entries.filter(e => {
+        try { return new URL(e.request.url).pathname !== new URL(authUrl).pathname; }
+        catch { return true; }
+      })
+    : entries;
+
   const steps: StepciStep[] = [];
 
   if (authUrl) steps.push(buildLoginStep(authUrl, authCfg));
 
-  steps.push(...entries.map((e) => entryToStep(e, useCaptures, authCfg.authScheme, apiHost, redact)));
+  steps.push(...filteredEntries.map((e) => entryToStep(e, useCaptures, authCfg.authScheme, apiHost, redact)));
 
   const workflow: StepciWorkflow = {
     version: '1.1',

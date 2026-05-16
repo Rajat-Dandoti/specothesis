@@ -1,21 +1,15 @@
-// Normalise a field name to a lowercase alphanum string for pattern matching.
-const normalise = (k: string) => k.toLowerCase().replace(/[-_.]/g, '');
-
-// Field names (normalised) that indicate a secret value.
-const SENSITIVE = new Set([
-  'password', 'passwd', 'pass', 'pwd',
-  'secret', 'clientsecret',
-  'token', 'accesstoken', 'refreshtoken', 'idtoken', 'authtoken', 'bearertoken',
-  'apikey', 'xapikey',
-  'privatekey', 'privkey',
-  'credential', 'credentials',
-  'otp', 'pin',
-  'ssn',
-]);
+const WHOLE_WORD = new Set(['password','passwd','pass','pwd','secret',
+  'token','apikey','credential','credentials','otp','pin','ssn','privatekey','privkey',
+  'accesstoken','refreshtoken','idtoken','authtoken','bearertoken','clientsecret','xapikey']);
+const SENSITIVE_SUFFIXES = new Set(['token','secret','password','apikey','passwd','key','credential']);
 
 export function isSensitiveKey(key: string): boolean {
-  const n = normalise(key);
-  return SENSITIVE.has(n) || [...SENSITIVE].some((s) => n.endsWith(s) || n.startsWith(s));
+  const lower = key.toLowerCase();
+  const normalised = lower.replace(/[-_.]/g, '');
+  if (WHOLE_WORD.has(normalised)) return true;
+  const segments = lower.split(/[-_.]/).filter(Boolean);
+  const last = segments[segments.length - 1] ?? '';
+  return segments.length > 1 && SENSITIVE_SUFFIXES.has(last);
 }
 
 /** Recursively redact values whose key is sensitive. */
@@ -36,7 +30,7 @@ export function redactObject(obj: unknown): unknown {
 export function redactKnownSecrets(text: string, secrets: string[]): string {
   let result = text;
   for (const s of secrets) {
-    if (s && s.length > 8) {
+    if (s && s.length >= 4) {
       result = result.split(s).join('[REDACTED]');
     }
   }

@@ -145,8 +145,9 @@ export async function collectCapturedFormData(
 
   for (const page of context.pages()) {
     try {
-      const entries = await page.evaluate('window.__apiScannerFd ?? []');
-      all.push(...(entries as CapturedFormEntry[]));
+      const raw: unknown = await page.evaluate('window.__apiScannerFd ?? []');
+      const entries = Array.isArray(raw) ? raw as CapturedFormEntry[] : [];
+      all.push(...entries);
       // Surface any browser-side capture errors back to Node
       const errs: string[] = await page.evaluate('window.__apiScannerErrors ?? []') as string[];
       for (const e of errs) console.warn(`  [formdata] WARNING: ${e}`);
@@ -171,7 +172,10 @@ export async function collectCapturedFormData(
  * Multiple calls to the same endpoint are matched FIFO (first captured →
  * first HAR entry by startedDateTime).
  */
-const MATCH_WINDOW_MS = 15_000; // 15 s — generous for slow uploads
+// 15 s window accommodates slow API responses on flaky networks. The injected
+// script captures the timestamp when the request fires; the HAR entry appears
+// after the response completes. On very slow APIs this gap can exceed 10 s.
+const MATCH_WINDOW_MS = 15_000;
 
 export function mergeFormDataIntoHar(entries: HarEntry[], captured: CapturedFormEntry[]): void {
   if (captured.length === 0) return;

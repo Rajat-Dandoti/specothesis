@@ -5,6 +5,7 @@ import type { HarEntry } from '../utils/harFilter.js';
 import type { AuthBodyFormat } from '../config.js';
 import { TransformError } from '../errors.js';
 import { isSensitiveKey, redactObject } from '../utils/redact.js';
+import { ID_SEGMENT } from '../utils/pathNormalise.js';
 
 // ---------------------------------------------------------------------------
 // Schema inference
@@ -119,7 +120,6 @@ function buildRequestBodySpec(
 // Path parameterisation
 // ---------------------------------------------------------------------------
 
-const ID_SEGMENT = /^(\d+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 const VERSION_SEGMENT = /^v\d+$/i;
 
 // ---------------------------------------------------------------------------
@@ -359,6 +359,9 @@ export function toOpenApi(
     const { template, paramNames } = normalisePath(urlObj.pathname);
     const key = `${entry.request.method.toUpperCase()}:${entryServerUrl}:${template}`;
 
+    if (groups.has(key)) {
+      console.warn(`  [openapi] WARNING: duplicate entry for ${entry.request.method.toUpperCase()} ${template} — last entry wins.`);
+    }
     groups.set(key, {
       method: entry.request.method.toLowerCase(),
       pathTemplate: template,
@@ -384,7 +387,11 @@ export function toOpenApi(
     }
   }
 
-  for (const { method, pathTemplate, paramNames, entryServerUrl, entry } of groups.values()) {
+  const sortedGroups = [...groups.values()].sort((a, b) =>
+    `${a.method}:${a.pathTemplate}`.localeCompare(`${b.method}:${b.pathTemplate}`)
+  );
+
+  for (const { method, pathTemplate, paramNames, entryServerUrl, entry } of sortedGroups) {
     if (!paths[pathTemplate]) paths[pathTemplate] = {};
     const pathItem = paths[pathTemplate] as Record<string, unknown>;
 

@@ -82,12 +82,14 @@ export function filterApiEntries(
   urlFilter: string,
   opts: { captureFailedRequests?: boolean } = {}
 ): HarEntry[] {
-  const regex = globToRegex(urlFilter);
+  const filterRegex = globToRegex(urlFilter);
 
   return har.log.entries.filter((entry) => {
     const url = entry.request.url;
 
-    if (!regex.test(url)) return false;
+    try { new URL(url); } catch { return false; }
+
+    if (!filterRegex.test(url)) return false;
 
     // Exclude page navigations and browser-initiated static asset loads.
     // 'other' covers service-worker fetches and some XHR recorders.

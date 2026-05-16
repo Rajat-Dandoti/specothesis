@@ -47,7 +47,9 @@ function attr(tag: string, name: string): string {
     .replace(/&quot;/g, '"')
     .replace(/&#10;/g, '\n')
     .replace(/&#13;/g, '\r')
-    .replace(/&#9;/g, '\t');
+    .replace(/&#9;/g, '\t')
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCharCode(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d) => String.fromCharCode(parseInt(d, 10)));
 }
 
 // ---------------------------------------------------------------------------

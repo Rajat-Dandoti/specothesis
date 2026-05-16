@@ -9,18 +9,46 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added (internal — no user-facing behaviour change)
 
-- **`src/args.ts`** — extracted `resolveOnlyFlag()` from `capture.ts` into a dedicated, testable
-  module. `capture.ts` now imports and delegates to it.
-- **Test coverage: 12 test files, 133 tests** (up from 6 files, 49 tests). New files:
+- **`src/pipeline.ts`** — `runPipeline(opts)` extracted from `capture.ts` as a shared module
+  used by both `start` and `replay` commands.
+- **`src/commands/`** — `capture.ts` split into four command modules: `start.ts`, `login.ts`,
+  `list.ts`, `replay.ts`. `capture.ts` is now a thin dispatcher.
+- **`src/utils/pathNormalise.ts`** — shared `ID_SEGMENT` regex imported by both `coverage.ts`
+  and `toOpenApi.ts` so path normalisation is consistent across the pipeline.
+- **Test coverage: 12 test files, 135 tests** (up from 6 files, 49 tests). New files:
   `redact.test.ts`, `drift.test.ts`, `toOpenApi.test.ts`, `toStepci.test.ts`, `args.test.ts`,
-  `config.test.ts`. Existing files extended with error-path cases.
+  `config.test.ts`. Zero expected-fail tests.
+
+### Fixed (internal)
+
+- **`isSensitiveKey` false positives** — segment-aware matching now correctly skips
+  `tokenCount`, `apikeystatus`, `secretaria` while still catching `access_token`,
+  `client-secret`, `X-Api-Key`.
+- **`redactKnownSecrets` minimum length** — lowered from 9 to 4 characters.
+- **Duplicate login step in StepCI output** — when `authUrl` is set, the login endpoint is
+  no longer duplicated as both a generated login step and a regular captured step.
+- **Duplicate OpenAPI endpoint warning** — when two captured requests map to the same
+  `method + path`, a warning is now logged instead of silently overwriting.
+- **Deterministic `operationId` ordering** — groups are sorted before ID assignment so
+  `operationId` values are stable across runs regardless of HAR entry order.
+- **URL validation in `filterApiEntries`** — malformed URLs are now skipped gracefully
+  instead of crashing downstream with `TypeError: Invalid URL`.
+- **Glob regex compiled once** per `filterApiEntries` call (was compiled per entry).
+- **`page.evaluate` result guarded** with `Array.isArray` before casting in `formDataCapture.ts`.
+- **`SCANNER_API_URL` validated** as a proper URL in `validateConfig`.
+- **`redact` moved to top-level `ScannerConfig`** — was incorrectly nested inside
+  `ScannerFeatures` (output toggles). It is now `config.redact` at the top level.
+- **`SCANNER_EXTRA_*` undefined values filtered** before forwarding to scripts.
+- **`schemaManifest.ts`** — `attr()` now handles hex (`&#xNNNN;`) and decimal (`&#NNN;`)
+  XML character entities.
 
 ### Refactored (internal)
 
-- `drift.ts` — extracted `computeDrift(baseline, current)` as a named export (pure function,
-  no file I/O) so it can be tested directly. `detectDrift` now delegates to it.
-- `toOpenApi.ts` — exported `inferSchema` and `normalisePath` as named exports for direct testing.
-- `toStepci.ts` — exported `buildRequestBody` as a named export for direct testing.
+- `drift.ts` — `computeDrift(baseline, current)` exported as a pure function; `detectDrift` delegates to it.
+- `toOpenApi.ts` — `inferSchema` and `normalisePath` exported as named exports.
+- `toStepci.ts` — `buildRequestBody` exported as a named export.
+- `runPipeline` — now takes a single `PipelineOptions` object instead of positional args.
+- Variable renames: `g` → `group` in `coverage.ts`; `re` → `filterRegex` in `harFilter.ts`.
 
 ---
 

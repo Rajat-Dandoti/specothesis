@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type { HarEntry } from '../utils/harFilter.js';
+import { ID_SEGMENT } from '../utils/pathNormalise.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -29,17 +30,10 @@ export interface CoverageSummary {
 // Path normalisation (coverage only — different from OpenAPI parameterisation)
 // ---------------------------------------------------------------------------
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const NUMERIC_RE = /^\d+$/;
-const HEX_LONG_RE = /^[0-9a-f]{9,}$/i;
-
 export function normaliseCoveragePath(pathname: string): string {
   return pathname
     .split('/')
-    .map((seg) => {
-      if (UUID_RE.test(seg) || NUMERIC_RE.test(seg) || HEX_LONG_RE.test(seg)) return '{id}';
-      return seg;
-    })
+    .map((seg) => (ID_SEGMENT.test(seg) ? '{id}' : seg))
     .join('/');
 }
 
@@ -89,27 +83,27 @@ export function buildCoverageSummary(entries: HarEntry[], sessionName: string): 
       });
     }
 
-    const g = groups.get(key)!;
-    g.statusCodes.add(entry.response.status);
-    g.callCount++;
-    if (hasAuth) g.hasAuth = true;
-    if (entry.time >= 0) g.responseTimes.push(entry.time);
-    if (entry.request.bodySize > 0) g.requestSizes.push(entry.request.bodySize);
-    if (entry.response.bodySize > 0) g.responseSizes.push(entry.response.bodySize);
+    const group = groups.get(key)!;
+    group.statusCodes.add(entry.response.status);
+    group.callCount++;
+    if (hasAuth) group.hasAuth = true;
+    if (entry.time >= 0) group.responseTimes.push(entry.time);
+    if (entry.request.bodySize > 0) group.requestSizes.push(entry.request.bodySize);
+    if (entry.response.bodySize > 0) group.responseSizes.push(entry.response.bodySize);
   }
 
-  const endpoints: EndpointCoverage[] = [...groups.values()].map((g) => ({
-    method: g.method,
-    path: g.path,
-    statusCodes: [...g.statusCodes].sort((a, b) => a - b),
-    callCount: g.callCount,
-    hasAuth: g.hasAuth,
+  const endpoints: EndpointCoverage[] = [...groups.values()].map((group) => ({
+    method: group.method,
+    path: group.path,
+    statusCodes: [...group.statusCodes].sort((a, b) => a - b),
+    callCount: group.callCount,
+    hasAuth: group.hasAuth,
     avgResponseMs:
-      g.responseTimes.length > 0
-        ? Math.round(g.responseTimes.reduce((s, t) => s + t, 0) / g.responseTimes.length)
+      group.responseTimes.length > 0
+        ? Math.round(group.responseTimes.reduce((s, t) => s + t, 0) / group.responseTimes.length)
         : 0,
-    requestSizes: g.requestSizes,
-    responseSizes: g.responseSizes,
+    requestSizes: group.requestSizes,
+    responseSizes: group.responseSizes,
   }));
 
   return {

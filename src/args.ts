@@ -43,7 +43,6 @@ export function resolveOnlyFlag(onlyStr: string, baseFeatures: ScannerFeatures):
   const features: ScannerFeatures = {
     dedup: baseFeatures.dedup,
     examples: baseFeatures.examples,
-    redact: baseFeatures.redact,
     openapi: false,
     stepci: false,
     curl: false,

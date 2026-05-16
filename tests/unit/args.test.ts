@@ -5,7 +5,6 @@ import type { ScannerFeatures } from '../../src/config.js';
 const BASE_FEATURES: ScannerFeatures = {
   dedup: true,
   examples: true,
-  redact: true,
   openapi: true,
   stepci: true,
   curl: true,
@@ -59,12 +58,11 @@ describe('resolveOnlyFlag', () => {
     expect(f.drift).toBe(true);
   });
 
-  it('preserves non-output flags (dedup, examples, redact) from baseFeatures', () => {
-    const base: ScannerFeatures = { ...BASE_FEATURES, dedup: false, examples: false, redact: false };
+  it('preserves non-output flags (dedup, examples) from baseFeatures', () => {
+    const base: ScannerFeatures = { ...BASE_FEATURES, dedup: false, examples: false };
     const f = resolveOnlyFlag('openapi', base);
     expect(f.dedup).toBe(false);
     expect(f.examples).toBe(false);
-    expect(f.redact).toBe(false);
   });
 
   it('throws with list of valid values for an unknown value', () => {

@@ -45,6 +45,7 @@ interface Rule {
   check(ep: EndpointCoverage, epEntries: HarEntry[], opts: AnomalyOpts): string | null;
 }
 
+// buildRules() is called once per pipeline run — no caching needed.
 function buildRules(): Rule[] {
   return [
     {

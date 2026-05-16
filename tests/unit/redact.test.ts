@@ -32,13 +32,11 @@ describe('isSensitiveKey — non-sensitive keys', () => {
   it('does not match "id"', () => expect(isSensitiveKey('id')).toBe(false));
 });
 
-// Known bug: prefix/suffix matching is overly broad — these currently WILL match.
-// They are expected to be fixed in Phase 3.
-describe('isSensitiveKey — known false positives (Phase 3 bug)', () => {
-  it.fails('tokenCount should NOT match (known bug)', () =>
+describe('isSensitiveKey — segment-aware matching (no false positives)', () => {
+  it('tokenCount should NOT match', () =>
     expect(isSensitiveKey('tokenCount')).toBe(false)
   );
-  it.fails('apikeystatus should NOT match (known bug)', () =>
+  it('apikeystatus should NOT match', () =>
     expect(isSensitiveKey('apikeystatus')).toBe(false)
   );
 });
@@ -94,9 +92,9 @@ describe('redactKnownSecrets', () => {
     expect(result).toBe('Bearer [REDACTED]');
   });
 
-  it('skips secrets shorter than 9 chars', () => {
-    const result = redactKnownSecrets('token: abc12345', ['abc12345']);
-    expect(result).toBe('token: abc12345');
+  it('skips secrets shorter than 4 chars', () => {
+    const result = redactKnownSecrets('token: abc', ['abc']);
+    expect(result).toBe('token: abc');
   });
 
   it('handles empty input string', () => {
@@ -113,9 +111,9 @@ describe('redactKnownSecrets', () => {
     expect(result).toBe('[REDACTED] and [REDACTED]');
   });
 
-  it('does not replace when secret is exactly 8 chars (boundary)', () => {
-    // length > 8 means length must be at least 9; exactly 8 is skipped
-    const result = redactKnownSecrets('val: 12345678', ['12345678']);
-    expect(result).toBe('val: 12345678');
+  it('does not replace when secret is exactly 3 chars (boundary)', () => {
+    // length >= 4 means length must be at least 4; exactly 3 is skipped
+    const result = redactKnownSecrets('val: abc', ['abc']);
+    expect(result).toBe('val: abc');
   });
 });
