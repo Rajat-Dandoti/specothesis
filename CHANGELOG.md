@@ -9,6 +9,40 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.1.2] — 2026-05-16 — Secret redaction & hardening
+
+### Added
+
+- **Secret redaction** (`SCANNER_ENABLE_REDACTION`, default `true`) — sensitive field values
+  (passwords, tokens, API keys, secrets, credentials) are replaced with `[REDACTED]` in every
+  generated output: OpenAPI examples, StepCI request bodies, curl commands (including JSON bodies),
+  and query parameter values. The raw HAR file is never redacted so replay always works.
+- **`src/utils/redact.ts`** — `isSensitiveKey()`, `redactObject()`, `redactKnownSecrets()` utilities
+  with normalised key matching (case-insensitive, strips `-`/`_`/`.`).
+
+### Improved
+
+- **Actionable error on missing automation script** — dynamic import failures now throw a clear
+  message with the resolved path and a hint to check for syntax errors.
+- **Actionable error on missing HAR** — replay mode now prints the HAR path, the underlying OS
+  error, and a hint to run `specint start` or export from Chrome DevTools.
+- **Actionable error in schema manifest** — `buildManifest` now throws a descriptive error if
+  the JUnit XML file is not found, instead of crashing with a raw `ENOENT`.
+- **Browser-side FormData errors surfaced** — capture errors from the injected form-data monkey-patch
+  are now collected in `window.__apiScannerErrors` and printed as warnings in Node rather than
+  silently swallowed.
+- **Filter tip on default filter** — when the default `**/api/**` filter is active, a tip is printed
+  at capture start reminding users how to widen the filter.
+- **Actionable "no entries matched" hint** — both the live-capture and replay code paths now print
+  concrete filter examples when zero requests match, instead of a bare warning.
+- **Username masked in non-TTY output** — `config.username` is shown as `***` in CI/pipe contexts.
+- **`requests.sh` header** — generated combined curl file now explains the single-quoting convention
+  and file placeholder format.
+- **`SCANNER_EXTRA_*` warning in `.env.example`** — documents that EXTRA variables must not contain
+  secrets.
+
+---
+
 ## [1.1.1] — 2026-05-16 — Docs & install clarity
 
 ### Fixed

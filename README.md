@@ -183,7 +183,7 @@ See `.env.example` for the full reference with examples for each auth method.
 
 ## Feature flags
 
-All nine outputs are individually toggleable. Set any to `false` in `.env` to disable:
+All outputs are individually toggleable. Set any to `false` in `.env` to disable:
 
 ```bash
 SCANNER_ENABLE_OPENAPI=true
@@ -195,6 +195,19 @@ SCANNER_ENABLE_DRIFT=true
 SCANNER_ENABLE_HTML_REPORT=true
 SCANNER_ENABLE_EXAMPLES=true    # captured values as examples in OpenAPI spec
 SCANNER_ENABLE_DEDUP=true       # deduplicate identical requests
+SCANNER_ENABLE_REDACTION=true   # redact sensitive values in all generated outputs
+```
+
+## Secret redaction
+
+By default, Specothesis redacts sensitive field values — passwords, tokens, API keys, secrets — in every generated output (OpenAPI examples, StepCI request bodies, curl commands). The raw HAR file is never redacted so replay always works.
+
+Redaction is key-name based: any field whose name matches common patterns (`password`, `token`, `apiKey`, `secret`, `credential`, etc.) has its value replaced with `[REDACTED]`.
+
+To disable (e.g. in a sandboxed dev environment where you want full values in outputs):
+
+```bash
+SCANNER_ENABLE_REDACTION=false
 ```
 
 For one-off runs, use `--only` to override env flags without editing `.env`:

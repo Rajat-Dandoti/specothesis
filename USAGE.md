@@ -149,6 +149,7 @@ Edit `.env` with your values. The file is gitignored — never commit it.
 | `SCANNER_ENABLE_ANOMALIES` | Generate `anomalies.json` |
 | `SCANNER_ENABLE_DRIFT` | Generate `drift.json` |
 | `SCANNER_ENABLE_HTML_REPORT` | Generate `report.html` |
+| `SCANNER_ENABLE_REDACTION` | Redact sensitive field values in all generated outputs (default: `true`) |
 
 ### 4.3 URL filter tips
 
@@ -692,7 +693,43 @@ test('checkout flow with mocked API', async ({ browser }) => {
 
 ---
 
-## 11. CI integration
+## 11. Secret redaction
+
+Specothesis redacts sensitive field values in every generated output file by default. The raw HAR (`raw.har`) is intentionally never redacted — replay and debugging always have full fidelity.
+
+### What gets redacted
+
+Redaction is applied to:
+- OpenAPI spec request/response examples
+- StepCI workflow request bodies
+- curl command argument values (including JSON bodies)
+- Query parameter values
+
+### How keys are matched
+
+A field is considered sensitive if its normalised name (lowercase, `-`/`_`/`.` stripped) contains or equals any of:
+
+`password`, `passwd`, `pass`, `pwd`, `secret`, `token`, `apikey`, `privatekey`, `credential`, `otp`, `pin`, `ssn`
+
+Examples: `Authorization`, `access_token`, `client-secret`, `x-api-key`, `refreshToken` all match.
+
+Redacted values are replaced with `[REDACTED]`.
+
+### Disabling redaction
+
+```bash
+SCANNER_ENABLE_REDACTION=false
+```
+
+Useful in a sandboxed dev environment where you want full example values in outputs. Never disable in shared or production pipelines.
+
+### SCANNER_EXTRA_* variables
+
+`SCANNER_EXTRA_*` values are forwarded to automation scripts and included verbatim in generated outputs. Do **not** store secrets in them — use `SCANNER_AUTH_TOKEN`, `SCANNER_API_KEY`, or `SCANNER_PASSWORD` instead, which are handled with redaction.
+
+---
+
+## 12. CI integration
 
 ### GitHub Actions example
 
@@ -870,6 +907,7 @@ SCANNER_ENABLE_COVERAGE       coverage.json + terminal table
 SCANNER_ENABLE_ANOMALIES      anomalies.json
 SCANNER_ENABLE_DRIFT          drift.json
 SCANNER_ENABLE_HTML_REPORT    report.html
+SCANNER_ENABLE_REDACTION      Redact sensitive field values in all outputs (default true)
 ```
 
 ### Project structure
