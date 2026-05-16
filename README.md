@@ -1,6 +1,7 @@
 # Specothesis
 
 [![npm version](https://img.shields.io/npm/v/specothesis)](https://www.npmjs.com/package/specothesis)
+[![CI](https://github.com/Rajat-Dandoti/specothesis/actions/workflows/ci.yml/badge.svg)](https://github.com/Rajat-Dandoti/specothesis/actions/workflows/ci.yml)
 [![license](https://img.shields.io/npm/l/specothesis)](LICENSE)
 [![node](https://img.shields.io/node/v/specothesis)](https://nodejs.org)
 
