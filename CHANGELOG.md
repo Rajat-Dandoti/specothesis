@@ -9,6 +9,77 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.1.1] — 2026-05-16 — Docs & install clarity
+
+### Fixed
+
+- **README** — added explicit `npx playwright install chromium` step after global install;
+  added URL filter callout explaining that `**/api/**` is the default and requests that don't
+  match the glob are silently skipped (the most common cause of empty output on first use).
+- **README** — clarified that `npm install -g` is required for the bare `specint` command;
+  local installs work via `npx specint` but do not put `specint` in PATH.
+
+---
+
+## [1.1.0] — 2026-05-15 — Quality uplift
+
+### Added
+
+- **`--version` / `-v` flag** — prints the installed npm version and exits.
+- **`--quiet` / `-q` flag** and `SCANNER_QUIET` env var — suppresses per-request `[req]`/`[res]`
+  log lines during capture. The final summary is always printed.
+- **`--include-failed` flag** and `SCANNER_CAPTURE_FAILED` env var — opt-in to include requests
+  that never received an HTTP response (network errors, CORS preflight failures, cancellations).
+  Playwright records these as status `-1`; by default they are filtered out to prevent invalid
+  OpenAPI status codes.
+- **`specint replay` command** — runs the full post-processing pipeline on an existing HAR file
+  without opening a browser. Useful for re-generating outputs after config changes or for
+  importing DevTools exports.
+  ```sh
+  specint replay --har captures/checkout/raw.har --session checkout
+  specint replay --har ~/Downloads/export.har --filter "**" --session full-import
+  ```
+- **StepCI `API_HOST` env block** — generated `stepci-workflow.yaml` now includes an `env`
+  block with `API_HOST` extracted from the first captured request. Step URLs use
+  `${{env.API_HOST}}/path` so the workflow can be retargeted to staging/prod without editing.
+- **Configurable anomaly thresholds** via env vars:
+  - `SCANNER_ANOMALY_SLOW_MS` — avg response time threshold (default: 2000 ms)
+  - `SCANNER_ANOMALY_LARGE_KB` — response body size threshold (default: 500 KB)
+  - `SCANNER_ANOMALY_REPEATED_N` — call count threshold (default: 5)
+  - `SCANNER_PUBLIC_PATTERNS` — comma-separated extra path keywords treated as public
+    (suppresses missing-auth warning; extends built-in list: login, signup, register, health,
+    ping, status, public)
+- **OpenAPI spec info overrides** via env vars: `SCANNER_API_TITLE`, `SCANNER_API_VERSION`,
+  `SCANNER_API_DESCRIPTION` — customise the `info` block in generated specs.
+- **CI / non-TTY detection** in `interactive.ts` — when stdin is not a TTY (e.g. piped input
+  in CI), the interactive loop auto-stops when stdin closes instead of hanging.
+- **`x + Enter` to cancel** the `login` profile save prompt without writing a profile file.
+- **GitHub issue and PR templates** (`.github/ISSUE_TEMPLATE/`, `.github/pull_request_template.md`).
+
+### Fixed
+
+- **Login profile not saved**: `rl.close()` fired the `'close'` event synchronously before
+  `resolve({ saved: true })` could run, causing the profile to be silently discarded. Fixed with
+  a `resolved` guard flag so only the first resolution wins.
+- **Swagger `-1` status code errors**: Playwright records status `-1` for failed/cancelled
+  requests. These are now filtered out by default (`SCANNER_CAPTURE_FAILED=false`), preventing
+  invalid OpenAPI status codes that cause Swagger UI import errors.
+- **`curl -s` → `curl -sS`** — silent mode now also shows errors (`-S`) so curl failures are
+  not swallowed silently.
+- **`toCurl` dropping custom headers** — `Authorization` and other captured headers are now
+  correctly emitted. Previously only a hardcoded set of headers was included.
+- **Session list sort order** — `specint list` now sorts sessions by modification time
+  (newest first) instead of alphabetically.
+- **Next-steps hint paths** — post-session hints now use relative paths from `cwd` instead of
+  absolute paths, making output cleaner across machines.
+
+### Changed
+
+- **`normaliseCoveragePath`** exported from `coverage.ts` and reused in `anomalies.ts`,
+  removing the duplicate inline implementation.
+
+---
+
 ## [1.0.0] — 2026-05-13 — Phase 5: OSS Preparation
 
 ### Added

@@ -17,6 +17,7 @@ A Playwright-based utility that records API traffic during a browser journey and
    - [login — save an auth profile](#51-login--save-an-auth-profile)
    - [start — capture a session](#52-start--capture-a-session)
    - [list — show profiles and sessions](#53-list--show-profiles-and-sessions)
+   - [replay — run pipeline on existing HAR](#54-replay--run-pipeline-on-existing-har)
 6. [Interactive controls (pause / resume / stop)](#6-interactive-controls-pause--resume--stop)
 7. [Sessions and profiles in depth](#7-sessions-and-profiles-in-depth)
 8. [Output files](#8-output-files)
@@ -183,11 +184,12 @@ specint login --url https://your-app.com --save-profile myapp
 What happens:
 1. Browser opens at `--url`.
 2. You log in manually.
-3. Type `q` + Enter in the terminal.
+3. Type `q` + Enter in the terminal to save, or `x` + Enter to cancel without saving.
 4. Auth state is saved to `profiles/myapp.json`.
 
 ```
   Log in to the app, then type  q  and press Enter to save your profile.
+  Type  x  and press Enter to cancel without saving.
 > q
   Profile saved: /path/to/profiles/myapp.json
 
@@ -264,6 +266,38 @@ Output:
   • product-listing
   • checkout
   • login-flow
+```
+
+---
+
+### 5.4 `replay` — run pipeline on existing HAR
+
+Runs the full transform + report pipeline on any existing HAR file — no browser needed. Useful for HAR exports from Chrome DevTools, Postman, mitmproxy, or reprocessing a previous specint capture with different settings.
+
+```bash
+specint replay --har path/to/export.har --session my-session
+```
+
+Options:
+
+```
+--har <path>       Path to the HAR file  (required)
+--session <name>   Output folder name    (default: HAR filename without extension)
+--filter <glob>    URL capture filter    (same as start, default: **/api/**)
+--only <outputs>   Comma-separated outputs to generate (same as start)
+```
+
+Examples:
+
+```bash
+# Replay a Chrome DevTools export
+specint replay --har ~/Downloads/export.har --session devtools-import
+
+# Reprocess a previous capture with only OpenAPI output
+specint replay --har captures/checkout/raw.har --only openapi
+
+# Capture everything, different filter
+specint replay --har export.har --filter "**" --session full-import
 ```
 
 ---
@@ -409,9 +443,9 @@ captures/
 | `client-error` | warn | Any 4xx response was seen |
 | `server-error` | warn | Any 5xx response was seen |
 | `missing-auth` | warn | No `Authorization` header on a non-public endpoint |
-| `slow-response` | info | Average response time > 2 000 ms |
-| `large-response` | info | Average response size > 1 MB |
-| `repeated-calls` | info | Same endpoint called 10+ times |
+| `slow-response` | info | Average response time > 2 000 ms (configurable: `SCANNER_ANOMALY_SLOW_MS`) |
+| `large-response` | info | Average response size > 500 KB (configurable: `SCANNER_ANOMALY_LARGE_KB`) |
+| `repeated-calls` | info | Same endpoint called 5+ times (configurable: `SCANNER_ANOMALY_REPEATED_N`) |
 
 ### Drift report
 
@@ -574,12 +608,27 @@ npm install -g stepci   # once
 stepci run ./captures/checkout/stepci-workflow.yaml
 ```
 
-Auth headers use env-variable references — supply credentials at run time:
+Auth headers and the API host use env-variable references — supply them at run time:
 
 ```bash
+API_HOST=https://your-app.com \
 SCANNER_AUTH_TOKEN=eyJhbGci... \
-SCANNER_API_KEY=sk-abc123 \
 stepci run ./captures/checkout/stepci-workflow.yaml
+```
+
+`API_HOST` is extracted from the first captured request and written into the workflow's `env` block so you can point the same workflow at different environments without editing the file.
+
+Sample generated workflow (top of file):
+
+```yaml
+version: "1.1"
+name: checkout
+env:
+  API_HOST: https://your-app.com
+tests:
+  checkout:
+    steps:
+      ...
 ```
 
 Sample generated step for a JSON endpoint:
@@ -587,7 +636,7 @@ Sample generated step for a JSON endpoint:
 ```yaml
 - name: POST /api/orders
   http:
-    url: https://your-app.com/api/orders
+    url: ${{env.API_HOST}}/api/orders
     method: POST
     headers:
       Authorization: ${{env.SCANNER_AUTH_TOKEN}}
@@ -609,7 +658,7 @@ Sample generated step for a multipart upload:
 ```yaml
 - name: POST /api/documents/upload
   http:
-    url: https://your-app.com/api/documents/upload
+    url: ${{env.API_HOST}}/api/documents/upload
     method: POST
     headers:
       Authorization: ${{env.SCANNER_AUTH_TOKEN}}
@@ -709,6 +758,7 @@ jobs:
 specint login --url <url> --save-profile <name>
 specint [start] [options]
 specint list
+specint replay --har <path> [options]
 ```
 
 | Command | Description |
@@ -716,6 +766,7 @@ specint list
 | `start` | Capture a named session (default) |
 | `login` | Open browser, log in, save auth profile |
 | `list` | Show saved profiles and recent sessions |
+| `replay` | Run full pipeline on an existing HAR file — no browser |
 
 ### CLI flags
 
@@ -730,11 +781,23 @@ start:
   --out <name>          Alias for --session (backwards compat)
   --only <outputs>      Comma-separated outputs for this run — overrides SCANNER_ENABLE_* flags
                         Values: openapi, stepci, curl, coverage, anomalies, drift, html
+  --quiet / -q          Suppress per-request log lines  (env: SCANNER_QUIET)
+  --include-failed      Include requests with no HTTP response (network errors, CORS,
+                        cancellations — Playwright records these as status -1)
+                        (env: SCANNER_CAPTURE_FAILED)
+
+replay:
+  --har <path>          Path to the HAR file  (required)
+  --session <name>      Output folder name  (default: HAR filename without extension)
+  --filter <glob>       URL capture filter  (same default as start)
+  --only <outputs>      Same values as start
 
 login:
   --url <url>           App URL to open
   --save-profile <name> Name to save the profile under  (required)
 
+global:
+  --version / -v        Print installed version and exit
   --help / -h           Show full help
 ```
 
@@ -759,11 +822,14 @@ specint start --url https://app.com --only coverage
 ```
 # Capture
 SCANNER_BASE_URL          Start URL
-SCANNER_URL_FILTER        Capture filter glob        default: **/api/**
-SCANNER_HEADLESS          true / false               default: false
+SCANNER_URL_FILTER        Capture filter glob                  default: **/api/**
+SCANNER_HEADLESS          true / false                         default: false
 SCANNER_SESSION           Session name / output folder
 SCANNER_PROFILE           Saved auth profile to load
 SCANNER_SCRIPT_PATH       Automation script path
+SCANNER_QUIET             Suppress per-request log lines       default: false
+SCANNER_CAPTURE_FAILED    Include status -1 entries (network
+                          errors, CORS, cancellations)         default: false
 
 # Auth / credentials
 SCANNER_USERNAME                Login username
@@ -779,6 +845,20 @@ SCANNER_AUTH_TOKEN              Static bearer token → ${{env.SCANNER_AUTH_TOKE
 SCANNER_API_URL                 API base URL → servers[0].url in OpenAPI spec
 SCANNER_API_KEY                 API key → ${{env.SCANNER_API_KEY}} in StepCI
 SCANNER_EXTRA_<KEY>             Arbitrary extras → config.extras.KEY
+
+# OpenAPI spec info
+SCANNER_API_TITLE         info.title in the generated spec     default: Captured API
+SCANNER_API_VERSION       info.version in the generated spec   default: 1.0.0
+SCANNER_API_DESCRIPTION   info.description in the generated spec
+
+# Anomaly detection thresholds
+SCANNER_ANOMALY_SLOW_MS     Avg response time (ms) to flag as slow    default: 2000
+SCANNER_ANOMALY_LARGE_KB    Response body size (KB) to flag as large  default: 500
+SCANNER_ANOMALY_REPEATED_N  Call count to flag as repeated            default: 5
+SCANNER_PUBLIC_PATTERNS     Comma-separated path keywords treated as
+                            public (suppresses missing-auth warning)
+                            Extends built-in list: login, signup, register,
+                            health, ping, status, public
 
 # Feature flags (all default true)
 SCANNER_ENABLE_DEDUP          Deduplicate requests before transforms
