@@ -18,17 +18,24 @@ All of this is written to disk in the session output directory (`captures/<sessi
 
 ---
 
-## What Does NOT Get Scrubbed Automatically
+## Automatic Secret Redaction
 
-The tool does **not** automatically redact secrets from outputs. This means:
+Since v1.1.2, Specothesis redacts sensitive field values in all generated outputs by default (`SCANNER_ENABLE_REDACTION=true`). Any field whose name matches common sensitive patterns — `password`, `token`, `apiKey`, `secret`, `credential`, `otp`, etc. — has its value replaced with `[REDACTED]` in:
 
-- `openapi.yaml` with `includeExamples=true` will contain real request/response values from your session
-- `stepci-workflow.yaml` will contain real header values unless replaced by env-var references
-- `curls/*.sh` will contain real `Authorization` header values if they don't use `$SCANNER_AUTH_TOKEN`
-- `coverage.json`, `anomalies.json`, `drift.json` contain path and header metadata but not body content
-- `raw.har` and `filtered.har` contain **full** request and response bodies including any secrets
+- `openapi.yaml` request/response examples
+- `stepci-workflow.yaml` request bodies
+- `curls/*.sh` command arguments (including JSON bodies)
+- Query parameter values
 
-**Do not commit session output directories to version control without reviewing them first.**
+**`raw.har` and `filtered.har` are intentionally never redacted** — they are the source of truth for replay and debugging. Treat them as sensitive files.
+
+To disable redaction (e.g. in a fully sandboxed dev environment):
+
+```bash
+SCANNER_ENABLE_REDACTION=false
+```
+
+**Do not commit session output directories to version control without reviewing them first, even with redaction enabled** — HAR files, profiles, and response bodies may contain PII or data beyond what key-name matching can catch.
 
 ---
 
@@ -38,7 +45,7 @@ The StepCI generator (`toStepci.ts`) replaces recognized auth headers with env-v
 - `Authorization: Bearer <token>` → `${{env.SCANNER_AUTH_TOKEN}}`
 - `X-Api-Key: <key>` → `${{env.SCANNER_API_KEY}}`
 
-The OpenAPI generator includes actual captured values as `example` fields when `SCANNER_ENABLE_EXAMPLES=true`. These examples will contain real tokens.
+The OpenAPI generator includes captured values as `example` fields when `SCANNER_ENABLE_EXAMPLES=true`. Since v1.1.2, sensitive field names (tokens, passwords, keys) are redacted to `[REDACTED]` by default. Response body examples may still contain non-key-name-matched sensitive data.
 
 The cURL generator currently only handles `Authorization` → `$SCANNER_AUTH_TOKEN`. Other auth headers (custom schemes, `X-Session-Token`, etc.) are written with their captured value.
 
@@ -89,10 +96,10 @@ The tool operates entirely in your local browser session — it does not interce
 
 Before sharing or publishing any session outputs:
 
-1. **Review `raw.har`** — contains complete request and response bodies. Search for tokens, passwords, PII.
-2. **Review `openapi.yaml`** — if `SCANNER_ENABLE_EXAMPLES=true`, example values come from real captured data.
-3. **Review `stepci-workflow.yaml`** — check that auth headers show `${{env.SCANNER_AUTH_TOKEN}}` and not real token values.
-4. **Review `curls/requests.sh`** — check for hardcoded bearer tokens.
+1. **Review `raw.har`** — contains complete request and response bodies. Never redacted. Search for tokens, passwords, PII before sharing.
+2. **Review `openapi.yaml`** — if `SCANNER_ENABLE_EXAMPLES=true`, example values are redacted by default for known sensitive keys, but response body content (e.g. user data, IDs) may still appear.
+3. **Review `stepci-workflow.yaml`** — auth headers are replaced with env-var references; body field values are redacted for sensitive keys.
+4. **Review `curls/requests.sh`** — sensitive field values are redacted; verify `Authorization` shows `$SCANNER_AUTH_TOKEN` not a real token.
 
 The `.gitignore` excludes `captures/` and `profiles/` by default. Do not override this without a clear reason.
 

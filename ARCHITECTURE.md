@@ -21,6 +21,7 @@ Browser (Playwright)
                          ┌───────────┼───────────┐
                          ▼           ▼           ▼
                     toOpenApi()  toStepci()  toCurl()
+                     ↓ redact()   ↓ redact()  ↓ redact()   (SCANNER_ENABLE_REDACTION)
                     .yaml/.json  .yaml       curls/*.sh
                                      │
                          buildCoverageSummary()

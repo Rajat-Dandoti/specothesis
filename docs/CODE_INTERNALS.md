@@ -57,7 +57,10 @@ Core HAR types and filtering logic. Defines `HarEntry` and `Har`. Contains:
 Fixes Playwright's multipart body representation. Playwright records multipart bodies as raw boundary text in `postData.text` and leaves `postData.params` empty. `enrichHarEntries()` parses the boundary text into structured `HarPostDataParam[]` in-place. Downstream code only ever needs to read `postData.params`.
 
 ### `utils/formDataCapture.ts`
-Solves the CDP multipart body capture problem. Chrome's CDP does not expose multipart request bodies in HAR files at all — `bodySize` is 0, `postData` is missing. The fix: inject a self-contained IIFE into the page before any requests fire that monkey-patches `window.fetch` and `XMLHttpRequest.send`. The patch serializes `FormData` fields into `window.__apiScannerFd[]`. After the session ends, `collectCapturedFormData()` reads that array from the browser and `mergeFormDataIntoHar()` correlates the entries back to HAR entries by method + URL + timestamp proximity (15-second window, FIFO queue per endpoint).
+Solves the CDP multipart body capture problem. Chrome's CDP does not expose multipart request bodies in HAR files at all — `bodySize` is 0, `postData` is missing. The fix: inject a self-contained IIFE into the page before any requests fire that monkey-patches `window.fetch` and `XMLHttpRequest.send`. The patch serializes `FormData` fields into `window.__apiScannerFd[]`. Capture errors from the injected script are accumulated in `window.__apiScannerErrors[]` and surfaced back to Node as warnings. After the session ends, `collectCapturedFormData()` reads that array from the browser and `mergeFormDataIntoHar()` correlates the entries back to HAR entries by method + URL + timestamp proximity (15-second window, FIFO queue per endpoint).
+
+### `utils/redact.ts`
+Key-name-based secret redaction applied at the transform layer (not HAR layer). `isSensitiveKey(key)` normalises the key (lowercase, strips `-`/`_`/`.`) and checks against a set of known sensitive names (`password`, `token`, `apikey`, `secret`, `credential`, `otp`, etc.). `redactObject(obj)` walks an arbitrary JSON value and replaces matching leaf values with `[REDACTED]`. `redactKnownSecrets(text, secrets)` does substring replacement for known literal values. Called by all three transform modules when `redact=true` (default).
 
 ### `transform/toOpenApi.ts`
 Generates OpenAPI 3.0.3 spec from `HarEntry[]`. Key behaviors:
@@ -66,6 +69,7 @@ Generates OpenAPI 3.0.3 spec from `HarEntry[]`. Key behaviors:
 - Infers JSON Schema from captured request and response bodies when `includeExamples=true`.
 - Builds a login operation from `authUrl` if provided, placing it first in `paths`.
 - Emits per-operation `servers` override when an entry's host differs from the global base origin.
+- Redacts sensitive field values in examples via `redactObject()` when `redact=true`.
 
 ### `transform/toStepci.ts`
 Generates a StepCI workflow YAML. Key behaviors:
@@ -74,9 +78,10 @@ Generates a StepCI workflow YAML. Key behaviors:
 - When `authUrl` is set, prepends a login step that captures the JWT via `captures.token`, and all subsequent `Authorization` headers reference `${{captures.token}}` instead.
 - Handles three body types: `json:`, `formData:`, and raw `body:`.
 - Generates `jsonpath` checks from the top 5 keys of a JSON response (presence checks only).
+- Redacts sensitive field values in request bodies via `redactObject()` when `redact=true`.
 
 ### `transform/toCurl.ts`
-Generates shell scripts. Writes one `.sh` per request plus a combined `requests.sh`. Only `Authorization` header is preserved (known limitation — see FINDINGS.md). Handles multipart (`-F`), JSON (`--data-raw` + Content-Type header), and form-encoded bodies.
+Generates shell scripts. Writes one `.sh` per request plus a combined `requests.sh`. Preserves all non-noisy headers (drops `host`, `connection`, `content-length`, `accept-encoding`). Replaces `Authorization` value with `$SCANNER_AUTH_TOKEN`. Handles multipart (`-F`), JSON (`--data-raw` + Content-Type header), and form-encoded bodies. JSON bodies are parsed and redacted via `redactObject()` when `redact=true`.
 
 ### `report/coverage.ts`
 Aggregates `HarEntry[]` into a `CoverageSummary` structure grouped by `method + normalised path`. Records per-endpoint: status codes seen, call count, auth presence, average response time, request/response sizes. Also handles the coverage table terminal output (`printCoverageTable`).
