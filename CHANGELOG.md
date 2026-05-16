@@ -5,7 +5,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [Unreleased]
+## [Unreleased] — v1.2.0 in progress
+
+### Added (internal — no user-facing behaviour change)
+
+- **`src/args.ts`** — extracted `resolveOnlyFlag()` from `capture.ts` into a dedicated, testable
+  module. `capture.ts` now imports and delegates to it.
+- **Test coverage: 12 test files, 133 tests** (up from 6 files, 49 tests). New files:
+  `redact.test.ts`, `drift.test.ts`, `toOpenApi.test.ts`, `toStepci.test.ts`, `args.test.ts`,
+  `config.test.ts`. Existing files extended with error-path cases.
+
+### Refactored (internal)
+
+- `drift.ts` — extracted `computeDrift(baseline, current)` as a named export (pure function,
+  no file I/O) so it can be tested directly. `detectDrift` now delegates to it.
+- `toOpenApi.ts` — exported `inferSchema` and `normalisePath` as named exports for direct testing.
+- `toStepci.ts` — exported `buildRequestBody` as a named export for direct testing.
 
 ---
 

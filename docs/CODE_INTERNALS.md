@@ -34,6 +34,9 @@ Browser (Playwright)
 ### `capture.ts`
 Entry point and command dispatcher. Owns the CLI argument parsing, browser lifecycle, and the sequencing of all pipeline stages. Three commands: `start`, `login`, `list`. No business logic lives here — it delegates immediately to the relevant module.
 
+### `args.ts`
+CLI argument parsing and `--only` flag resolution. `resolveOnlyFlag(str, baseFeatures)` parses a comma-separated `--only` value into a `ScannerFeatures` object with implied dependencies wired up (e.g. `anomalies` implies `coverage`, `html` implies `coverage + anomalies + drift`). Extracted from `capture.ts` to be independently testable. `capture.ts` imports and delegates to it.
+
 ### `config.ts`
 Single source of truth for all configuration. Loads `.env`, reads environment variables, and merges CLI overrides. Exports `resolveConfig()` which CLI callers use to produce a fully-resolved `ScannerConfig`. Also exports `AUTH_ENV_REFS` — the mapping from lowercase header names to their StepCI env variable references (`authorization → ${{env.SCANNER_AUTH_TOKEN}}`).
 
@@ -65,8 +68,8 @@ Key-name-based secret redaction applied at the transform layer (not HAR layer). 
 ### `transform/toOpenApi.ts`
 Generates OpenAPI 3.0.3 spec from `HarEntry[]`. Key behaviors:
 - Groups entries by `method + normalised path template`. Last entry per group wins.
-- `normalisePath()` replaces numeric and UUID path segments with `{name}Id` parameters, deriving the name from the preceding segment.
-- Infers JSON Schema from captured request and response bodies when `includeExamples=true`.
+- `normalisePath()` — exported named export — replaces numeric and UUID path segments with `{name}Id` parameters, deriving the name from the preceding segment.
+- `inferSchema()` — exported named export — infers JSON Schema from any JS value recursively.
 - Builds a login operation from `authUrl` if provided, placing it first in `paths`.
 - Emits per-operation `servers` override when an entry's host differs from the global base origin.
 - Redacts sensitive field values in examples via `redactObject()` when `redact=true`.
@@ -76,7 +79,7 @@ Generates a StepCI workflow YAML. Key behaviors:
 - Skips noisy/session-specific headers via `SKIP_HEADERS` set.
 - Replaces auth header values with env-var references (`${{env.SCANNER_AUTH_TOKEN}}`).
 - When `authUrl` is set, prepends a login step that captures the JWT via `captures.token`, and all subsequent `Authorization` headers reference `${{captures.token}}` instead.
-- Handles three body types: `json:`, `formData:`, and raw `body:`.
+- `buildRequestBody()` — exported named export — handles three body types: `json:`, `formData:`, and raw `body:`.
 - Generates `jsonpath` checks from the top 5 keys of a JSON response (presence checks only).
 - Redacts sensitive field values in request bodies via `redactObject()` when `redact=true`.
 
@@ -92,7 +95,7 @@ Path normalization here: UUIDs → `{id}`, numeric strings → `{id}`, long hex 
 Runs a set of `Rule` objects over the coverage summary + raw entries. Each rule returns a message string or `null`. Currently six rules: `client-error`, `server-error`, `missing-auth`, `slow-response`, `large-response`, `repeated-calls`. The `missing-auth` rule suppresses false positives for known public endpoints via `PUBLIC_KEYWORDS` heuristic.
 
 ### `report/drift.ts`
-Compares the current `CoverageSummary` against a previous one to detect endpoint additions, removals, and changes. Change detection covers: status codes set equality, auth presence flip. `loadPreviousCoverage` finds the base session (first run without a numeric suffix) in the same `captures/` directory.
+Compares the current `CoverageSummary` against a previous one to detect endpoint additions, removals, and changes. Change detection covers: status codes set equality, auth presence flip. `loadPreviousCoverage` finds the base session (first run without a numeric suffix) in the same `captures/` directory. The pure comparison logic is exported as `computeDrift(baseline, current)` — `detectDrift` delegates to it after loading files.
 
 ### `report/htmlReport.ts`
 Generates two HTML reports:

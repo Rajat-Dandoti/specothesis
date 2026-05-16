@@ -52,7 +52,8 @@ openapi.yaml
 
 | Module | Responsibility |
 |---|---|
-| `capture.ts` | CLI entry point. Owns arg parsing, browser lifecycle, and pipeline sequencing. Three commands: `start`, `login`, `list`. No business logic — delegates immediately. |
+| `capture.ts` | CLI entry point. Owns browser lifecycle and pipeline sequencing. Delegates arg parsing to `args.ts` and config resolution to `config.ts`. No business logic. |
+| `args.ts` | CLI argument parsing. `resolveOnlyFlag(str, baseFeatures)` resolves the `--only` flag into a `ScannerFeatures` object with implied dependencies (e.g. `anomalies` → `coverage`). |
 | `config.ts` | Single source of truth for all configuration. `resolveConfig()` merges CLI flags > env vars > `.env` > defaults. Exports `AUTH_ENV_REFS` (header name → StepCI env var reference). |
 | `session.ts` | Filesystem for profiles and sessions. `makeSessionDir` handles auto-increment (`checkout`, `checkout-2`, …). |
 | `interactive.ts` | Readline-based `p` / `r` / `q` loop. Returns `RecordingWindow[]` — the active time intervals used downstream to filter HAR entries. |
