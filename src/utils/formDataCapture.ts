@@ -45,6 +45,7 @@ export function getBrowserScript(): string {
   return `(function () {
   if (window.__apiScannerFd !== undefined) return;
   window.__apiScannerFd = [];
+  window.__apiScannerErrors = [];
 
   function extractParams(formData, mimeType) {
     var params = [];
@@ -60,7 +61,7 @@ export function getBrowserScript(): string {
           params.push({ name: name, value: String(value) });
         }
       });
-    } catch (e) {}
+    } catch (e) { window.__apiScannerErrors.push('extractParams: ' + String(e)); }
     return params;
   }
 
@@ -88,7 +89,7 @@ export function getBrowserScript(): string {
           mimeType: ct,
         });
       }
-    } catch (e) {}
+    } catch (e) { window.__apiScannerErrors.push('fetch patch: ' + String(e)); }
     return _fetch.apply(this, arguments);
   };
 
@@ -104,7 +105,7 @@ export function getBrowserScript(): string {
       }
       this._asFdMethod = String(method).toUpperCase();
       this._asFdUrl = String(resolved);
-    } catch (e) {}
+    } catch (e) { window.__apiScannerErrors.push('XHR open patch: ' + String(e)); }
     return _open.apply(this, arguments);
   };
 
@@ -119,7 +120,7 @@ export function getBrowserScript(): string {
           mimeType: 'multipart/form-data',
         });
       }
-    } catch (e) {}
+    } catch (e) { window.__apiScannerErrors.push('XHR send patch: ' + String(e)); }
     return _send.apply(this, arguments);
   };
 })();`;
@@ -144,9 +145,11 @@ export async function collectCapturedFormData(
 
   for (const page of context.pages()) {
     try {
-      // Use a string so TypeScript doesn't type-check the browser-side expression
       const entries = await page.evaluate('window.__apiScannerFd ?? []');
       all.push(...(entries as CapturedFormEntry[]));
+      // Surface any browser-side capture errors back to Node
+      const errs: string[] = await page.evaluate('window.__apiScannerErrors ?? []') as string[];
+      for (const e of errs) console.warn(`  [formdata] WARNING: ${e}`);
     } catch {
       // page may have been closed
     }

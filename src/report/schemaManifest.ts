@@ -129,7 +129,16 @@ export function buildManifest(
   sessionName: string,
   baseUrl: string
 ): SchemaManifest {
-  const xml = fs.readFileSync(junitPath, 'utf-8');
+  let xml: string;
+  try {
+    xml = fs.readFileSync(junitPath, 'utf-8');
+  } catch (err) {
+    throw new Error(
+      `Could not read JUnit results at: ${junitPath}\n` +
+      `  ${err instanceof Error ? err.message : err}\n` +
+      `  Run 'specint test' to generate results before building the manifest.`
+    );
+  }
   const { suiteAttr, cases } = parseJUnit(xml);
 
   const ranAt = new Date().toISOString();

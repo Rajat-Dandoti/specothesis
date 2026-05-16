@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as yaml from 'js-yaml';
 import type { HarEntry } from '../utils/harFilter.js';
 import { AUTH_ENV_REFS, type AuthBodyFormat } from '../config.js';
+import { isSensitiveKey, redactObject } from '../utils/redact.js';
 
 interface StepciStep {
   name: string;
@@ -121,7 +122,7 @@ function buildJsonpathChecks(
  *   - multipart/form-data    → formData: (text fields inline; file fields as path placeholders)
  *   - anything else          → body: (raw string)
  */
-function buildRequestBody(postData: HarEntry['request']['postData']): {
+function buildRequestBody(postData: HarEntry['request']['postData'], redact = true): {
   json?: unknown;
   form?: Record<string, string>;
   formData?: Record<string, unknown>;
@@ -143,10 +144,9 @@ function buildRequestBody(postData: HarEntry['request']['postData']): {
     const formData: Record<string, unknown> = {};
     for (const p of params) {
       if (p.fileName) {
-        // File upload field — emit a placeholder path the user can substitute
         formData[p.name] = { file: `<path/to/${p.fileName}>` };
       } else {
-        formData[p.name] = p.value ?? '';
+        formData[p.name] = (redact && isSensitiveKey(p.name)) ? '[REDACTED]' : (p.value ?? '');
       }
     }
     return { formData };
@@ -156,7 +156,8 @@ function buildRequestBody(postData: HarEntry['request']['postData']): {
   if (mime.toLowerCase().includes('application/json')) {
     if (postData.text) {
       try {
-        return { json: JSON.parse(postData.text) };
+        const parsed = JSON.parse(postData.text);
+        return { json: redact ? redactObject(parsed) : parsed };
       } catch {
         return { body: postData.text };
       }
@@ -169,13 +170,12 @@ function buildRequestBody(postData: HarEntry['request']['postData']): {
     const params = postData.params ?? [];
     if (params.length > 0) {
       const form: Record<string, string> = {};
-      for (const p of params) form[p.name] = p.value ?? '';
+      for (const p of params) form[p.name] = (redact && isSensitiveKey(p.name)) ? '[REDACTED]' : (p.value ?? '');
       return { form };
     }
     if (postData.text) {
-      // Parse query-string style text as fallback
       const form: Record<string, string> = {};
-      for (const [k, v] of new URLSearchParams(postData.text)) form[k] = v;
+      for (const [k, v] of new URLSearchParams(postData.text)) form[k] = (redact && isSensitiveKey(k)) ? '[REDACTED]' : v;
       return { form };
     }
     return {};
@@ -189,7 +189,8 @@ function entryToStep(
   entry: HarEntry,
   useCaptures = false,
   authScheme?: string,
-  apiHost?: string
+  apiHost?: string,
+  redact = true
 ): StepciStep {
   const { method, url, headers: reqHeaders, postData } = entry.request;
   const { status, content } = entry.response;
@@ -207,7 +208,7 @@ function entryToStep(
     useCaptures,
     authScheme,
   });
-  const bodyFields = buildRequestBody(postData);
+  const bodyFields = buildRequestBody(postData, redact);
   const jsonpath = buildJsonpathChecks(content.text);
 
   const step: StepciStep = {
@@ -290,7 +291,8 @@ export function toStepci(
   journeyName: string,
   outDir: string,
   authUrl: string | undefined,
-  authCfg: StepciAuthConfig
+  authCfg: StepciAuthConfig,
+  redact = true
 ): void {
   const useCaptures = !!authUrl;
 
@@ -308,7 +310,7 @@ export function toStepci(
 
   if (authUrl) steps.push(buildLoginStep(authUrl, authCfg));
 
-  steps.push(...entries.map((e) => entryToStep(e, useCaptures, authCfg.authScheme, apiHost)));
+  steps.push(...entries.map((e) => entryToStep(e, useCaptures, authCfg.authScheme, apiHost, redact)));
 
   const workflow: StepciWorkflow = {
     version: '1.1',

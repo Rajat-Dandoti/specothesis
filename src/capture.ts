@@ -4,7 +4,7 @@ import { createRequire } from 'module';
 import { chromium } from 'playwright';
 import minimist from 'minimist';
 import { resolveConfig, validateConfig, type ScannerConfig, type ScannerFeatures } from './config.js';
-import { ConfigError } from './errors.js';
+import { ConfigError, CaptureError } from './errors.js';
 import {
   readHar,
   filterApiEntries,
@@ -173,6 +173,7 @@ function applyOnlyFlag(cfg: ScannerConfig, only: string): ScannerConfig {
   const features: ScannerFeatures = {
     dedup: cfg.features.dedup,
     examples: cfg.features.examples,
+    redact: cfg.features.redact,
     openapi: false,
     stepci: false,
     curl: false,
@@ -337,8 +338,13 @@ async function startCommand(): Promise<void> {
   console.log(`\n=== Specothesis — Session: "${sessionName}" ===`);
   console.log(`  URL:     ${baseUrl}`);
   console.log(`  Filter:  ${urlFilter}`);
+  if (urlFilter === '**/api/**')
+    console.log(`  Tip:     Use --filter "**" to capture all requests, or set SCANNER_URL_FILTER in .env`);
   if (profileName) console.log(`  Profile: ${profileName}`);
-  if (config.username) console.log(`  User:    ${config.username}`);
+  if (config.username) {
+    const displayUser = process.stdout.isTTY ? config.username : '***';
+    console.log(`  User:    ${displayUser}`);
+  }
   console.log(`  Output:  ${runDir}`);
   console.log('');
 
@@ -389,7 +395,16 @@ async function startCommand(): Promise<void> {
   if (scriptPath) {
     // Automated script — no interactive controls
     console.log(`\nRunning automation script: ${scriptPath}`);
-    const script = await import(path.resolve(scriptPath));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let script: any;
+    try {
+      script = await import(path.resolve(scriptPath));
+    } catch (err) {
+      await browser.close();
+      throw new CaptureError(
+        `Could not load script: ${scriptPath}\n  ${err instanceof Error ? err.message : err}\n  Check the file exists and has no syntax errors.`
+      );
+    }
     const fn = script.default || script;
     await fn(page, context, config);
     console.log('Script completed.');
@@ -436,7 +451,13 @@ async function startCommand(): Promise<void> {
   apiEntries = filterByWindows(apiEntries, recordingWindows);
 
   if (apiEntries.length === 0) {
-    console.warn('\n  No API entries matched. Check --filter or widen the glob.');
+    console.warn(`\n  No API entries matched the active filter: ${urlFilter}`);
+    console.warn(`\n  Common fixes:`);
+    console.warn(`    • Widen the filter:  specint start --filter "**"`);
+    console.warn(`    • Match /v1/ paths:  specint start --filter "**/v1/**"`);
+    console.warn(`    • Match by host:     specint start --filter "https://api.example.com/**"`);
+    console.warn(`    • Verify your app makes XHR/fetch calls (not only page navigations)`);
+    console.warn(`    • Set SCANNER_URL_FILTER in .env to avoid passing --filter each time`);
     process.exit(0);
   }
 
@@ -488,9 +509,9 @@ function runPipeline(
       title: config.apiTitle,
       version: config.apiVersion,
       description: config.apiDescription,
-    });
-  if (config.features.stepci) toStepci(apiEntries, sessionName, runDir, config.authUrl, authCfg);
-  if (config.features.curl) toCurl(apiEntries, runDir);
+    }, config.features.redact);
+  if (config.features.stepci) toStepci(apiEntries, sessionName, runDir, config.authUrl, authCfg, config.features.redact);
+  if (config.features.curl) toCurl(apiEntries, runDir, config.features.redact);
 
   writeFilteredHar(har, apiEntries, filteredHarPath);
 
@@ -567,13 +588,25 @@ async function replayCommand(): Promise<void> {
   console.log(`  Filter:  ${urlFilter}`);
   console.log(`  Output:  ${runDir}\n`);
 
-  const har = readHar(harPath);
+  let har: ReturnType<typeof readHar>;
+  try {
+    har = readHar(harPath);
+  } catch (err) {
+    console.error(`\nError: could not read HAR file: ${harPath}`);
+    console.error(`  ${err instanceof Error ? err.message : err}`);
+    console.error(`  Run 'specint start' to capture a session, or export a HAR from`);
+    console.error(`  Chrome DevTools (Network tab → right-click → Save all as HAR).`);
+    process.exit(1);
+  }
   let apiEntries = filterApiEntries(har, urlFilter, {
     captureFailedRequests: config.captureFailedRequests,
   });
 
   if (apiEntries.length === 0) {
-    console.warn('  No API entries matched. Check --filter or widen the glob.');
+    console.warn(`\n  No API entries matched the active filter: ${urlFilter}`);
+    console.warn(`\n  Common fixes:`);
+    console.warn(`    • Widen the filter:  specint replay --har ${harPath} --filter "**"`);
+    console.warn(`    • Set SCANNER_URL_FILTER in .env to avoid passing --filter each time`);
     process.exit(0);
   }
 

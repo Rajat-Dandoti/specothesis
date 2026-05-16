@@ -62,6 +62,8 @@ export interface ScannerFeatures {
   drift: boolean;
   /** Phase 5 — write report.html */
   htmlReport: boolean;
+  /** Redact sensitive field values (passwords, tokens, keys) in all generated outputs */
+  redact: boolean;
 }
 
 export type AuthMethod = 'bearer-login' | 'bearer-static' | 'api-key' | 'basic' | 'none';
@@ -215,6 +217,7 @@ export const defaultConfig: ScannerConfig = {
     anomalies: envBool('SCANNER_ENABLE_ANOMALIES', true),
     drift: envBool('SCANNER_ENABLE_DRIFT', true),
     htmlReport: envBool('SCANNER_ENABLE_HTML_REPORT', true),
+    redact: envBool('SCANNER_ENABLE_REDACTION', true),
   },
 
   apiTitle: env('SCANNER_API_TITLE') ?? 'Captured API',

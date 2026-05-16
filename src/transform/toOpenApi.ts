@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as yaml from 'js-yaml';
 import type { HarEntry } from '../utils/harFilter.js';
 import type { AuthBodyFormat } from '../config.js';
+import { isSensitiveKey, redactObject } from '../utils/redact.js';
 
 // ---------------------------------------------------------------------------
 // Schema inference
@@ -42,7 +43,8 @@ function inferSchema(value: unknown, withExample = false): JsonSchema {
 
 function buildRequestBodySpec(
   postData: HarEntry['request']['postData'],
-  withExample = false
+  withExample = false,
+  redact = true
 ): Record<string, unknown> | undefined {
   if (!postData) return undefined;
 
@@ -59,7 +61,7 @@ function buildRequestBodySpec(
         if (withExample) exampleMap[p.name] = `<path/to/${p.fileName}>`;
       } else {
         properties[p.name] = { type: 'string' };
-        if (withExample) exampleMap[p.name] = p.value ?? '';
+        if (withExample) exampleMap[p.name] = (redact && isSensitiveKey(p.name)) ? '[REDACTED]' : (p.value ?? '');
       }
     }
     const schema: JsonSchema = { type: 'object', properties };
@@ -79,7 +81,7 @@ function buildRequestBodySpec(
       /* leave generic */
     }
     const contentEntry: Record<string, unknown> = { schema };
-    if (withExample && parsed !== undefined) contentEntry.example = parsed;
+    if (withExample && parsed !== undefined) contentEntry.example = redact ? redactObject(parsed) : parsed;
     return { required: true, content: { 'application/json': contentEntry } };
   }
 
@@ -90,12 +92,12 @@ function buildRequestBodySpec(
     if (params.length > 0) {
       for (const p of params) {
         properties[p.name] = { type: 'string' };
-        if (withExample) exampleMap[p.name] = p.value ?? '';
+        if (withExample) exampleMap[p.name] = (redact && isSensitiveKey(p.name)) ? '[REDACTED]' : (p.value ?? '');
       }
     } else if (postData.text) {
       for (const [k, v] of new URLSearchParams(postData.text)) {
         properties[k] = { type: 'string' };
-        if (withExample) exampleMap[k] = v;
+        if (withExample) exampleMap[k] = (redact && isSensitiveKey(k)) ? '[REDACTED]' : v;
       }
     }
     if (Object.keys(properties).length === 0) return undefined;
@@ -175,13 +177,14 @@ function normalisePath(pathname: string): { template: string; paramNames: string
 
 function buildResponseSchema(
   responseText: string | undefined,
-  withExample = false
+  withExample = false,
+  redact = true
 ): JsonSchema | undefined {
   if (!responseText) return undefined;
   try {
     const parsed = JSON.parse(responseText);
     const schema = inferSchema(parsed, withExample);
-    if (withExample) schema.example = parsed;
+    if (withExample) schema.example = redact ? redactObject(parsed) : parsed;
     return schema;
   } catch {
     return undefined;
@@ -311,7 +314,8 @@ export function toOpenApi(
   authUrl: string | undefined,
   includeExamples: boolean,
   authCfg: LoginAuthConfig,
-  infoOverrides: OpenApiInfoOverrides = {}
+  infoOverrides: OpenApiInfoOverrides = {},
+  redact = true
 ): void {
   // Resolve the server URL for the spec.
   // baseServerUrl  — full URL used in servers[0] (preserves any base path in SCANNER_API_URL)
@@ -397,12 +401,12 @@ export function toOpenApi(
         in: 'query',
         required: false,
         schema: inferSchema(v),
-        example: v,
+        example: (redact && isSensitiveKey(k)) ? '[REDACTED]' : v,
       });
     }
 
-    const requestBody = buildRequestBodySpec(entry.request.postData, includeExamples);
-    const responseSchema = buildResponseSchema(entry.response.content.text, includeExamples);
+    const requestBody = buildRequestBodySpec(entry.request.postData, includeExamples, redact);
+    const responseSchema = buildResponseSchema(entry.response.content.text, includeExamples, redact);
     const responseContent = responseSchema
       ? { 'application/json': { schema: responseSchema } }
       : undefined;
