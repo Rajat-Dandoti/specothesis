@@ -707,11 +707,18 @@ Redaction is applied to:
 
 ### How keys are matched
 
-A field is considered sensitive if its normalised name (lowercase, `-`/`_`/`.` stripped) contains or equals any of:
+Matching uses **segment-aware logic** to avoid false positives:
 
-`password`, `passwd`, `pass`, `pwd`, `secret`, `token`, `apikey`, `privatekey`, `credential`, `otp`, `pin`, `ssn`
+1. If the full normalised key (lowercase, `-`/`_`/`.` stripped) exactly matches a known sensitive word — it's redacted.
+2. Otherwise the key is split on separators (`-`, `_`, `.`) and the **last segment** is checked against a set of sensitive suffixes.
 
-Examples: `Authorization`, `access_token`, `client-secret`, `x-api-key`, `refreshToken` all match.
+Known exact matches: `password`, `passwd`, `pass`, `pwd`, `secret`, `token`, `apikey`, `privatekey`, `credential`, `credentials`, `otp`, `pin`, `ssn`
+
+Sensitive suffixes (last segment): `token`, `secret`, `password`, `apikey`, `passwd`, `key`, `credential`
+
+Examples that **match**: `access_token`, `client-secret`, `X-Api-Key`, `refreshToken`, `Authorization`
+
+Examples that **do not match** (avoiding false positives): `tokenCount`, `apikeystatus`, `documentType`, `secretaria`
 
 Redacted values are replaced with `[REDACTED]`.
 

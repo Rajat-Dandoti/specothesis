@@ -1,20 +1,13 @@
 import { createRequire } from 'module';
-import minimist from 'minimist';
 import { resolveConfig, type ScannerConfig } from './config.js';
-import { resolveOnlyFlag } from './args.js';
+import { parseArgs, resolveOnlyFlag } from './args.js';
 import { ConfigError, CaptureError, TransformError } from './errors.js';
 
 // ---------------------------------------------------------------------------
 // CLI
 // ---------------------------------------------------------------------------
 
-const argv = minimist(process.argv.slice(2), {
-  string: ['url', 'out', 'filter', 'script', 'session', 'profile', 'save-profile', 'only', 'har'],
-  boolean: ['headless', 'help', 'list', 'version', 'quiet', 'include-failed'],
-  alias: { h: 'help', v: 'version', q: 'quiet' },
-});
-
-const COMMAND = (argv._[0] as string | undefined) ?? 'start'; // 'login' | 'start' | 'list' | 'replay'
+const { command: COMMAND, flags: argv } = parseArgs(process.argv.slice(2));
 
 if (argv.version) {
   const _require = createRequire(import.meta.url);

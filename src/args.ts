@@ -1,4 +1,24 @@
+import minimist from 'minimist';
 import type { ScannerFeatures } from './config.js';
+
+// ---------------------------------------------------------------------------
+// Argument parsing
+// ---------------------------------------------------------------------------
+
+export interface ParsedArgs {
+  command: string;
+  flags: minimist.ParsedArgs;
+}
+
+export function parseArgs(argv: string[]): ParsedArgs {
+  const flags = minimist(argv, {
+    string: ['url', 'out', 'filter', 'script', 'session', 'profile', 'save-profile', 'only', 'har'],
+    boolean: ['headless', 'help', 'list', 'version', 'quiet', 'include-failed'],
+    alias: { h: 'help', v: 'version', q: 'quiet' },
+  });
+  const command = (flags._[0] as string | undefined) ?? 'start';
+  return { command, flags };
+}
 
 // ---------------------------------------------------------------------------
 // --only flag resolution

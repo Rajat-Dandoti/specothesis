@@ -13,6 +13,17 @@ import { ID_SEGMENT } from '../utils/pathNormalise.js';
 
 type JsonSchema = Record<string, unknown>;
 
+function mergeObjectSchemas(schemas: JsonSchema[]): JsonSchema {
+  if (!schemas.every((s) => s.type === 'object')) return schemas[0] ?? {};
+  const allKeys = new Set(schemas.flatMap((s) => Object.keys((s.properties as object) ?? {})));
+  const properties: Record<string, JsonSchema> = {};
+  for (const k of allKeys) {
+    const found = schemas.find((s) => (s.properties as Record<string, unknown>)?.[k]);
+    properties[k] = found ? ((found.properties as Record<string, JsonSchema>)[k] ?? {}) : {};
+  }
+  return { type: 'object', properties };
+}
+
 export function inferSchema(value: unknown, withExample = false): JsonSchema {
   const ex = (v: unknown) => (withExample ? { example: v } : {});
   if (value === null) return { type: 'string', nullable: true, ...ex(null) };
@@ -23,11 +34,10 @@ export function inferSchema(value: unknown, withExample = false): JsonSchema {
       : { type: 'number', ...ex(value) };
   if (typeof value === 'string') return { type: 'string', ...ex(value) };
   if (Array.isArray(value)) {
-    return {
-      type: 'array',
-      items: value.length > 0 ? inferSchema(value[0], withExample) : {},
-      ...ex(value),
-    };
+    if (value.length === 0) return { type: 'array', items: {}, ...ex(value) };
+    const schemas = value.map((v) => inferSchema(v, false));
+    const items = mergeObjectSchemas(schemas);
+    return { type: 'array', items, ...ex(value) };
   }
   if (typeof value === 'object') {
     const properties: Record<string, JsonSchema> = {};
