@@ -19,7 +19,7 @@ Built on Playwright. Works with any web app.
 2. Click through your app (or run an automation script)
 3. Press `q` to stop — outputs are generated automatically
 
-![Specothesis Snippet](https://github.com/user-attachments/assets/5d21c076-b568-4e44-bf58-ea4e4cca85f8)
+https://github.com/user-attachments/assets/5d21c076-b568-4e44-bf58-ea4e4cca85f8
 
 ```
 Browser (Playwright HAR recording)
