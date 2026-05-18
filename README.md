@@ -85,10 +85,9 @@ mv .env.example .env
 # set SCANNER_BASE_URL in .env
 ```
 
-> **URL filter — set this before your first capture.**
-> The default filter (`**/api/**`) only captures requests whose URL contains `/api/`. If your
-> API uses a different path pattern (e.g. `/v1/`, `/graphql`, or no prefix at all), set
-> `SCANNER_URL_FILTER` in `.env` — it's the most common cause of empty output on first use.
+> By default Specothesis captures **all XHR/fetch requests** (`SCANNER_URL_FILTER=**`). Use
+> `--filter` or `SCANNER_URL_FILTER` in `.env` to narrow captures to a specific path pattern
+> if you want to exclude noise (third-party analytics, CDN calls, etc.).
 
 **From source:**
 ```bash
@@ -106,12 +105,12 @@ Set `SCANNER_BASE_URL` in `.env` to your app's URL. Everything else has sensible
 
 ## Quickstart
 
-> **URL filter:** By default only requests whose URL contains `/api/` are captured (`**/api/**`).
-> If your API uses a different path pattern, set `--filter` to match it:
+> **URL filter:** All XHR/fetch requests are captured by default. Use `--filter` to narrow
+> captures if you want to exclude noise (analytics, CDN, third-party calls):
 > ```bash
-> --filter "**/v1/**"      # match /v1/ paths
-> --filter "**"            # capture all XHR/fetch requests
-> --filter "https://api.example.com/**"   # match by host
+> --filter "**/api/**"                   # only URLs containing /api/
+> --filter "**/v1/**"                    # only URLs containing /v1/
+> --filter "https://api.example.com/**"  # only calls to a specific host
 > ```
 > Set `SCANNER_URL_FILTER` in `.env` to avoid passing it every time.
 
@@ -124,7 +123,7 @@ specint start \
   --url https://your-app.com \
   --profile myapp \
   --session checkout \
-  --filter "**/api/**"   # adjust this glob to match your API's URL pattern
+  --filter "**/api/**"   # optional: narrow to /api/ paths only
 
 # 3. Run StepCI regression tests
 stepci run captures/checkout/stepci-workflow.yaml
@@ -259,7 +258,7 @@ specint <cmd> --help     Command-specific help
 --url <url>          Starting URL              (env: SCANNER_BASE_URL)
 --session <name>     Output folder name        (env: SCANNER_SESSION)
 --profile <name>     Load saved auth profile   (env: SCANNER_PROFILE)
---filter <glob>      URL capture filter        (env: SCANNER_URL_FILTER, default: **/api/**)
+--filter <glob>      URL capture filter        (env: SCANNER_URL_FILTER, default: **)
                      Must match your API's URL pattern — if no entries match, outputs are skipped.
 --headless           Headless browser          (env: SCANNER_HEADLESS)
 --script <path>      Automation script

@@ -174,7 +174,7 @@ const VALID_AUTH_BODY_FORMATS: AuthBodyFormat[] = ['form', 'json', 'formData'];
 
 export const defaultConfig: ScannerConfig = {
   baseUrl: env('SCANNER_BASE_URL') ?? '',
-  urlFilter: env('SCANNER_URL_FILTER') ?? '**/api/**',
+  urlFilter: env('SCANNER_URL_FILTER') ?? '**',
   headless: envBool('SCANNER_HEADLESS', false),
   outName: env('SCANNER_OUT_NAME') ?? '',
   scriptPath: env('SCANNER_SCRIPT_PATH'),

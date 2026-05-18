@@ -42,7 +42,7 @@ Common options (start):
   --url <url>            Starting URL  (env: SCANNER_BASE_URL)
   --session <name>       Session name — used as the output folder  (env: SCANNER_SESSION)
   --profile <name>       Load a saved auth profile  (env: SCANNER_PROFILE)
-  --filter <glob>        URL capture filter  (env: SCANNER_URL_FILTER, default: "**/api/**")
+  --filter <glob>        URL capture filter  (env: SCANNER_URL_FILTER, default: "**")
   --only <outputs>       Comma-separated outputs: openapi, stepci, curl, coverage, anomalies, drift, html
   --quiet / -q           Suppress per-request log lines  (env: SCANNER_QUIET)
   --version / -v         Print version and exit

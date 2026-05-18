@@ -48,8 +48,6 @@ export async function run(config: ScannerConfig): Promise<void> {
   console.log(`\n=== Specothesis — Session: "${sessionName}" ===`);
   console.log(`  URL:     ${baseUrl}`);
   console.log(`  Filter:  ${urlFilter}`);
-  if (urlFilter === '**/api/**')
-    console.log(`  Tip:     Use --filter "**" to capture all requests, or set SCANNER_URL_FILTER in .env`);
   if (profileName) console.log(`  Profile: ${profileName}`);
   if (config.username) {
     const displayUser = process.stdout.isTTY ? config.username : '***';

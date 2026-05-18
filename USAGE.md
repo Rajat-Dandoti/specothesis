@@ -112,7 +112,7 @@ Edit `.env` with your values. The file is gitignored — never commit it.
 | Variable | CLI flag | Default | Description |
 |---|---|---|---|
 | `SCANNER_BASE_URL` | `--url` | _(required)_ | Starting URL opened in the browser |
-| `SCANNER_URL_FILTER` | `--filter` | `**/api/**` | Glob to scope which requests are captured |
+| `SCANNER_URL_FILTER` | `--filter` | `**` | Glob to scope which requests are captured |
 | `SCANNER_HEADLESS` | `--headless` | `false` | Run browser without a visible window |
 | `SCANNER_SESSION` | `--session` | hostname slug | Session name — used as the output folder |
 | `SCANNER_PROFILE` | `--profile` | _(none)_ | Name of a saved auth profile to load |
@@ -154,14 +154,20 @@ Edit `.env` with your values. The file is gitignored — never commit it.
 
 ### 4.3 URL filter tips
 
+By default **all XHR/fetch requests are captured** (`SCANNER_URL_FILTER=**`). Narrow the filter
+to exclude noise from analytics, CDN, or third-party calls:
+
 ```bash
-# Only requests whose path contains /api/ (default)
+# Narrow to URLs containing /api/ only
 SCANNER_URL_FILTER=**/api/**
 
-# Everything from one domain
+# Narrow to a specific host
 SCANNER_URL_FILTER=https://api.example.com/**
 
-# Capture everything — useful for initial discovery
+# Narrow to /v1/ paths
+SCANNER_URL_FILTER=**/v1/**
+
+# Keep the default — capture everything
 SCANNER_URL_FILTER=**
 ```
 
@@ -212,7 +218,6 @@ specint start \
   --url https://your-app.com \
   --profile myapp \
   --session product-listing \
-  --filter "**/api/**"
 ```
 
 The browser opens already logged in. Use the terminal controls to pause, resume, and stop (see [section 6](#6-interactive-controls-pause--resume--stop)).
@@ -233,7 +238,7 @@ specint start \
 ```bash
 # .env
 SCANNER_BASE_URL=https://your-app.com
-SCANNER_URL_FILTER=**/api/**
+SCANNER_URL_FILTER=**
 SCANNER_PROFILE=myapp
 SCANNER_SESSION=product-listing
 
@@ -327,7 +332,7 @@ Options:
 ```
 --har <path>       Path to the HAR file  (required)
 --session <name>   Output folder name    (default: HAR filename without extension)
---filter <glob>    URL capture filter    (same as start, default: **/api/**)
+--filter <glob>    URL capture filter    (same as start, default: **)
 --only <outputs>   Comma-separated outputs to generate (same as start)
 ```
 
@@ -909,7 +914,7 @@ specint start --url https://app.com --only coverage
 ```
 # Capture
 SCANNER_BASE_URL          Start URL
-SCANNER_URL_FILTER        Capture filter glob                  default: **/api/**
+SCANNER_URL_FILTER        Capture filter glob                  default: **
 SCANNER_HEADLESS          true / false                         default: false
 SCANNER_SESSION           Session name / output folder
 SCANNER_PROFILE           Saved auth profile to load

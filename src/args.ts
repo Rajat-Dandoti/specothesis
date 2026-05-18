@@ -35,7 +35,7 @@ Options:
   --url <url>            Starting URL  (env: SCANNER_BASE_URL)
   --session <name>       Session name — used as the output folder  (env: SCANNER_SESSION)
   --profile <name>       Load a saved auth profile  (env: SCANNER_PROFILE)
-  --filter <glob>        URL capture filter  (env: SCANNER_URL_FILTER, default: "**/api/**")
+  --filter <glob>        URL capture filter  (env: SCANNER_URL_FILTER, default: "**")
   --headless             Headless browser  (env: SCANNER_HEADLESS)
   --script <file>        Automation script  (env: SCANNER_SCRIPT_PATH)
   --out <name>           Alias for --session (backwards compat)

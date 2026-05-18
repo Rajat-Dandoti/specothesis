@@ -7,6 +7,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased] — v1.3.0 in progress
 
+### Changed (breaking default)
+
+- **Default URL filter changed from `**/api/**` to `**`** — Specothesis now captures all
+  XHR/fetch requests by default instead of only those whose URL contains `/api/`. Use
+  `--filter "**/api/**"` or `SCANNER_URL_FILTER=**/api/**` in `.env` to restore the old
+  behaviour. The new default works out of the box for any API path convention.
+
 ### Added
 
 - **`specint profile` subcommand** — manage saved auth profiles from the CLI without
