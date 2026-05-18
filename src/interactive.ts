@@ -95,6 +95,11 @@ export function startInteractiveLoop(
             rl.close();
             resolve(windows);
           } else {
+            if (cmd) {
+              const valid =
+                status === 'recording' ? 'p (pause), q (stop)' : 'r (resume), q (stop)';
+              console.log(`  Unknown command '${cmd}'. Valid: ${valid}`);
+            }
             printStatus(status, sessionName, getRequestCount());
           }
         });

@@ -17,7 +17,8 @@ A Playwright-based utility that records API traffic during a browser journey and
    - [login — save an auth profile](#51-login--save-an-auth-profile)
    - [start — capture a session](#52-start--capture-a-session)
    - [list — show profiles and sessions](#53-list--show-profiles-and-sessions)
-   - [replay — run pipeline on existing HAR](#54-replay--run-pipeline-on-existing-har)
+   - [profile — manage saved profiles](#54-profile--manage-saved-auth-profiles)
+   - [replay — run pipeline on existing HAR](#55-replay--run-pipeline-on-existing-har)
 6. [Interactive controls (pause / resume / stop)](#6-interactive-controls-pause--resume--stop)
 7. [Sessions and profiles in depth](#7-sessions-and-profiles-in-depth)
 8. [Output files](#8-output-files)
@@ -271,7 +272,49 @@ Output:
 
 ---
 
-### 5.4 `replay` — run pipeline on existing HAR
+### 5.4 `profile` — manage saved auth profiles
+
+Manage saved profiles without touching the filesystem directly.
+
+```bash
+specint profile list                # tabular list with creation date
+specint profile show <name>         # origins, cookie names, localStorage keys (no values)
+specint profile delete <name>       # delete with y/N confirmation prompt
+```
+
+**Example output of `specint profile list`:**
+
+```
+Saved profiles:
+
+  • myapp                    saved 16 May 2026
+  • staging-admin            saved 14 May 2026
+```
+
+**Example output of `specint profile show myapp`:**
+
+```
+Profile: myapp
+File:    /path/to/profiles/myapp.json
+Saved:   16 May 2026
+
+Cookies (3 — names only, no values):
+  • session  [domain: app.example.com]
+  • _csrf    [domain: app.example.com]
+  • XSRF-TOKEN  [domain: app.example.com]
+
+localStorage @ https://app.example.com (2 keys — names only):
+  • authToken
+  • userId
+```
+
+> Secret values (cookie values, localStorage values) are never printed by `profile show`.
+> The raw profile JSON at `profiles/<name>.json` contains the actual values — keep that
+> directory out of version control.
+
+---
+
+### 5.5 `replay` — run pipeline on existing HAR
 
 Runs the full transform + report pipeline on any existing HAR file — no browser needed. Useful for HAR exports from Chrome DevTools, Postman, mitmproxy, or reprocessing a previous specint capture with different settings.
 

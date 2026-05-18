@@ -7,6 +7,9 @@ import type { ScannerFeatures } from './config.js';
 
 export interface ParsedArgs {
   command: string;
+  /** true when the user explicitly typed the command name (e.g. `specint start`),
+   *  false when it was inferred as the default (`specint --url ...`). */
+  commandIsExplicit: boolean;
   flags: minimist.ParsedArgs;
 }
 
@@ -16,9 +19,66 @@ export function parseArgs(argv: string[]): ParsedArgs {
     boolean: ['headless', 'help', 'list', 'version', 'quiet', 'include-failed'],
     alias: { h: 'help', v: 'version', q: 'quiet' },
   });
-  const command = (flags._[0] as string | undefined) ?? 'start';
-  return { command, flags };
+  const rawCommand = flags._[0] as string | undefined;
+  const command = rawCommand ?? 'start';
+  return { command, commandIsExplicit: rawCommand !== undefined, flags };
 }
+
+// ---------------------------------------------------------------------------
+// Per-subcommand help text (I1)
+// ---------------------------------------------------------------------------
+
+export const COMMAND_HELP: Record<string, string> = {
+  start: `Usage: specint [start] [options]
+
+Options:
+  --url <url>            Starting URL  (env: SCANNER_BASE_URL)
+  --session <name>       Session name — used as the output folder  (env: SCANNER_SESSION)
+  --profile <name>       Load a saved auth profile  (env: SCANNER_PROFILE)
+  --filter <glob>        URL capture filter  (env: SCANNER_URL_FILTER, default: "**/api/**")
+  --headless             Headless browser  (env: SCANNER_HEADLESS)
+  --script <file>        Automation script  (env: SCANNER_SCRIPT_PATH)
+  --out <name>           Alias for --session (backwards compat)
+  --only <outputs>       Comma-separated outputs to generate, disabling all others.
+                         Valid: openapi, stepci, curl, coverage, anomalies, drift, html
+                         Implied deps: anomalies→coverage, drift→coverage, html→all three
+  --quiet / -q           Suppress per-request [req]/[res] log lines  (env: SCANNER_QUIET)
+  --include-failed       Include requests that received no HTTP response  (env: SCANNER_CAPTURE_FAILED)
+  --version / -v         Print version and exit
+  --help / -h            Show this help
+
+Interactive controls (manual mode):
+  p + Enter   Pause recording
+  r + Enter   Resume recording
+  q + Enter   Stop and generate outputs`,
+
+  replay: `Usage: specint replay --har <path> [options]
+
+Options:
+  --har <path>           Path to an existing HAR file (required)
+  --session <name>       Output folder name (default: HAR filename without extension)
+  --filter <glob>        URL filter — same as start  (default: **/api/**)
+  --only <outputs>       Comma-separated outputs: openapi, stepci, curl, coverage, anomalies, drift, html`,
+
+  login: `Usage: specint login --url <url> --save-profile <name>
+
+Options:
+  --url <url>            App URL to open for login
+  --save-profile <name>  Name to save the profile under (required)
+
+  After logging in, type  q + Enter  to save the profile, or  x + Enter  to cancel.`,
+
+  list: `Usage: specint list
+
+  Lists saved auth profiles and recent capture sessions.`,
+
+  profile: `Usage: specint profile <subcommand> [name]
+
+Subcommands:
+  list              List all saved profiles with creation date
+  show <name>       Show profile details: origins, cookie names, localStorage keys (no values)
+  delete <name>     Delete a saved profile`,
+};
 
 // ---------------------------------------------------------------------------
 // --only flag resolution

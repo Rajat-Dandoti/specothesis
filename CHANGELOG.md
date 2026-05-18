@@ -5,7 +5,34 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [Unreleased]
+## [Unreleased] — v1.3.0 in progress
+
+### Added
+
+- **`specint profile` subcommand** — manage saved auth profiles from the CLI without
+  touching the filesystem directly:
+  - `specint profile list` — tabular list of all saved profiles with creation date
+  - `specint profile show <name>` — shows origins, cookie names, and localStorage key names
+    (no secret values ever printed)
+  - `specint profile delete <name>` — deletes a profile with an interactive confirmation
+    prompt (`y/N`). Non-TTY/CI contexts treat the prompt as `N` (no accidental deletes).
+- **Per-subcommand help** — `specint <command> --help` now shows options specific to that
+  command instead of the global wall-of-text. Works for `start`, `replay`, `login`, `list`,
+  and `profile`. `specint --help` (no explicit command) still shows the full global help.
+- **`USAGE.md` and `ARCHITECTURE.md` included in npm package** — now shipped in the `files`
+  array so `npm install -g specothesis` also installs the full reference docs.
+
+### Changed
+
+- **Interactive loop** — typing an unrecognised command now prints a specific acknowledgment
+  (`Unknown command 'foo'. Valid: p (pause), q (stop)`) instead of silently re-printing the
+  status line. Empty Enter re-prompts without noise.
+- **Playwright version pin** tightened from `^1.44.0` to `~1.44.0` to prevent silent
+  breakage from Playwright minor releases.
+- **README auth section** — replaced prose with a quick-reference auth method matrix table
+  and promoted the USAGE.md link to appear directly after the quickstart section.
+- **README install section** — added a callout warning about `SCANNER_URL_FILTER` being the
+  most common cause of empty output on first use.
 
 ---
 

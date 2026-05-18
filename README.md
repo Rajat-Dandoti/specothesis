@@ -85,6 +85,11 @@ mv .env.example .env
 # set SCANNER_BASE_URL in .env
 ```
 
+> **URL filter — set this before your first capture.**
+> The default filter (`**/api/**`) only captures requests whose URL contains `/api/`. If your
+> API uses a different path pattern (e.g. `/v1/`, `/graphql`, or no prefix at all), set
+> `SCANNER_URL_FILTER` in `.env` — it's the most common cause of empty output on first use.
+
 **From source:**
 ```bash
 git clone https://github.com/Rajat-Dandoti/specothesis.git specothesis
@@ -134,6 +139,10 @@ xdg-open captures/checkout/report.html   # Linux
 
 ---
 
+Full CLI reference, all env vars, and advanced configuration: **[USAGE.md](USAGE.md)**
+
+---
+
 ## Output files
 
 Every capture run creates a folder under `captures/<session-name>/`:
@@ -154,26 +163,29 @@ Every capture run creates a folder under `captures/<session-name>/`:
 
 ## Auth configuration
 
-By default Specothesis expects a login endpoint that returns `{"access_token": "..."}` with
-a `multipart/form-data` body containing `username` and `password`. All of this is configurable:
+Pick the row that matches your API and set those variables in `.env`:
+
+| Your API auth | Variables to set |
+|---|---|
+| Login endpoint → Bearer token | `SCANNER_AUTH_URL`, `SCANNER_USERNAME`, `SCANNER_PASSWORD` |
+| Static Bearer token (no login) | `SCANNER_AUTH_METHOD=bearer-static`, `SCANNER_AUTH_TOKEN` |
+| API key header | `SCANNER_AUTH_METHOD=api-key`, `SCANNER_API_KEY` |
+| HTTP Basic auth | `SCANNER_AUTH_METHOD=basic`, `SCANNER_USERNAME`, `SCANNER_PASSWORD` |
+| No auth / public API | `SCANNER_AUTH_METHOD=none` (or set nothing) |
+
+**Customising the login flow** (bearer-login only):
 
 ```bash
-# Login endpoint
 SCANNER_AUTH_URL=https://auth.example.com/api/v1/login
-
-# Auth method (auto-detected as bearer-login when AUTH_URL is set)
-# bearer-login | bearer-static | api-key | basic | none
-SCANNER_AUTH_METHOD=bearer-login
 
 # Login body format: form (default) | json | formData
 SCANNER_AUTH_BODY_FORMAT=json
 
-# Field names in the login body
+# Field names in the login body (defaults: username, password)
 SCANNER_AUTH_USERNAME_FIELD=email
 SCANNER_AUTH_PASSWORD_FIELD=password
 
-# JSONPath to the token in the login response
-# Supports: $.access_token | $.token | $.data.jwt | $.auth.token
+# JSONPath to the token in the login response (default: $.access_token)
 SCANNER_AUTH_TOKEN_PATH=$.token
 
 # Prefix before the token in Authorization header (default: Bearer)
@@ -231,10 +243,14 @@ specint start --url https://app.com --only html
 ## Commands
 
 ```
-specint start    Capture a session (default command)
-specint login    Open browser, log in, save auth profile
-specint list     Show saved profiles and recent sessions
-specint --help   Full help and examples
+specint start            Capture a session (default command)
+specint login            Open browser, log in, save auth profile
+specint list             Show saved profiles and recent sessions
+specint replay --har … Run the pipeline on an existing HAR file
+specint profile list     List saved profiles with creation date
+specint profile show …   Show profile details (no secret values)
+specint profile delete … Delete a saved profile
+specint <cmd> --help     Command-specific help
 ```
 
 ### start options

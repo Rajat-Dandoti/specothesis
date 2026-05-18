@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveOnlyFlag } from '../../src/args.js';
+import { parseArgs, resolveOnlyFlag, COMMAND_HELP } from '../../src/args.js';
 import type { ScannerFeatures } from '../../src/config.js';
 
 const BASE_FEATURES: ScannerFeatures = {
@@ -13,6 +13,71 @@ const BASE_FEATURES: ScannerFeatures = {
   drift: true,
   htmlReport: true,
 };
+
+describe('parseArgs', () => {
+  it('defaults command to start when no positional given', () => {
+    const { command, commandIsExplicit } = parseArgs(['--url', 'https://app.com']);
+    expect(command).toBe('start');
+    expect(commandIsExplicit).toBe(false);
+  });
+
+  it('sets commandIsExplicit when command is named explicitly', () => {
+    const { command, commandIsExplicit } = parseArgs(['start', '--url', 'https://app.com']);
+    expect(command).toBe('start');
+    expect(commandIsExplicit).toBe(true);
+  });
+
+  it('parses replay command with --har flag', () => {
+    const { command, flags } = parseArgs(['replay', '--har', 'path/to/file.har']);
+    expect(command).toBe('replay');
+    expect(flags['har']).toBe('path/to/file.har');
+  });
+
+  it('parses profile command with subcommand positional', () => {
+    const { command, flags } = parseArgs(['profile', 'list']);
+    expect(command).toBe('profile');
+    expect(flags._[1]).toBe('list');
+  });
+
+  it('parses --quiet via -q alias', () => {
+    const { flags } = parseArgs(['-q']);
+    expect(flags.quiet).toBe(true);
+  });
+
+  it('parses --version via -v alias', () => {
+    const { flags } = parseArgs(['-v']);
+    expect(flags.version).toBe(true);
+  });
+});
+
+describe('COMMAND_HELP', () => {
+  it('has entries for all known commands', () => {
+    for (const cmd of ['start', 'replay', 'login', 'list', 'profile']) {
+      expect(COMMAND_HELP[cmd]).toBeDefined();
+      expect(typeof COMMAND_HELP[cmd]).toBe('string');
+      expect(COMMAND_HELP[cmd].length).toBeGreaterThan(0);
+    }
+  });
+
+  it('start help mentions --url and --session', () => {
+    expect(COMMAND_HELP['start']).toContain('--url');
+    expect(COMMAND_HELP['start']).toContain('--session');
+  });
+
+  it('replay help mentions --har', () => {
+    expect(COMMAND_HELP['replay']).toContain('--har');
+  });
+
+  it('login help mentions --save-profile', () => {
+    expect(COMMAND_HELP['login']).toContain('--save-profile');
+  });
+
+  it('profile help mentions list, show, delete subcommands', () => {
+    expect(COMMAND_HELP['profile']).toContain('list');
+    expect(COMMAND_HELP['profile']).toContain('show');
+    expect(COMMAND_HELP['profile']).toContain('delete');
+  });
+});
 
 describe('resolveOnlyFlag', () => {
   it('"openapi" → only openapi: true, all others false', () => {
