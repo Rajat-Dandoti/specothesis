@@ -34,7 +34,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Interactive loop** — typing an unrecognised command now prints a specific acknowledgment
   (`Unknown command 'foo'. Valid: p (pause), q (stop)`) instead of silently re-printing the
   status line. Empty Enter re-prompts without noise.
-- **Playwright version pin** tightened from `^1.44.0` to `~1.44.0` to prevent silent
+- **Playwright version pin** tightened from `^1.44.0` to `~1.59.0` to prevent silent
   breakage from Playwright minor releases.
 - **README auth section** — replaced prose with a quick-reference auth method matrix table
   and promoted the USAGE.md link to appear directly after the quickstart section.
