@@ -37,6 +37,7 @@ export function runPipeline({ apiEntries, har, sessionName, runDir, baseUrl, con
     authPasswordField: config.authPasswordField,
     authTokenPath: config.authTokenPath,
     authScheme: config.authScheme,
+    authMethod: config.authMethod,
   };
 
   if (config.features.openapi)

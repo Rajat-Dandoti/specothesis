@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites disabled="0" errors="0" failures="13" tests="13" time="36.11395383584022">
+	<testsuite disabled="0" errors="0" failures="13" name="schemathesis" skipped="5" tests="13" time="36.11395383584022" hostname="Rajats-MacBook-Air.local">
+		<testcase name="POST /api/v1/local/{tenant}/login" time="0.372763">
+			<failure type="failure" message="1. Test Case ID: 7zTbFn&#10;&#10;- Unsupported methods&#10;&#10;    TRACE returned 405 without required `Allow` header&#10;&#10;    Add `Allow` header listing supported methods (required by RFC 9110)&#10;&#10;[405] Method Not Allowed:&#10;&#10;    `&lt;html&gt;&#13;&#10;    &lt;head&gt;&lt;title&gt;405 Not Allowed&lt;/title&gt;&lt;/head&gt;&#13;&#10;    &lt;body&gt;&#13;&#10;    &lt;center&gt;&lt;h1&gt;405 Not Allowed&lt;/h1&gt;&lt;/center&gt;&#13;&#10;    &lt;hr&gt;&lt;center&gt;nginx&lt;/center&gt;&#13;&#10;    &lt;/body&gt;&#13;&#10;    &lt;/html&gt;`&#10;&#10;Reproduce with:&#10;&#10;    curl -X TRACE -H 'Content-Type: multipart/form-data; boundary=ed9ffced8d5312023f3460ab0ff19a30' -d $'--9bfc295ec0b0bb9381e2a4a1d85bbd79\r\nContent-Disposition: form-data; name=&quot;username&quot;\r\n\r\n\r\n--9bfc295ec0b0bb9381e2a4a1d85bbd79\r\nContent-Disposition: form-data; name=&quot;password&quot;\r\n\r\n\r\n--9bfc295ec0b0bb9381e2a4a1d85bbd79--\r\n' https://api.dev-v5.privasapien.com/api/v1/local/0/login"/>
+			<failure type="failure" message="1. Test Case ID: N0SrI6&#10;&#10;- Undocumented HTTP status code&#10;&#10;    Received: 401&#10;    Documented: 200&#10;&#10;[401] Unauthorized:&#10;&#10;    `{&quot;message&quot;:&quot;user cookie (_pg.platform.u) is not available or empty&quot;}`&#10;&#10;Reproduce with:&#10;&#10;    curl -X POST -H 'Content-Type: multipart/form-data; boundary=9d64360a493cd5dca96d2e40ab9c41ea' -d $'--fda0a9da7859dabfd3ddd773d6a6dbe5\r\nContent-Disposition: form-data; name=&quot;password&quot;\r\n\r\n\r\n--fda0a9da7859dabfd3ddd773d6a6dbe5\r\nContent-Disposition: form-data; name=&quot;username&quot;\r\n\r\n\r\n--fda0a9da7859dabfd3ddd773d6a6dbe5--\r\n' https://api.dev-v5.privasapien.com/api/v1/local/0/login"/>
+			<skipped type="skipped">No examples in schema</skipped>
+		</testcase>
+		<testcase name="GET /api/health" time="0.397752">
+			<failure type="failure" message="1. Test Case ID: pqu1zB&#10;&#10;- Undocumented HTTP status code&#10;&#10;    Received: 401&#10;    Documented: 200&#10;&#10;[401] Unauthorized:&#10;&#10;    `{&quot;message&quot;:&quot;user cookie (_pg.platform.u) is not available or empty&quot;}`&#10;&#10;Reproduce with:&#10;&#10;    curl -X GET -H 'Authorization: [Filtered]' 'https://api.dev-v5.privasapien.com/api/health?deep=true'"/>
+		</testcase>
+		<testcase name="GET /api/v1/application-master/applications/level" time="0.155316">
+			<failure type="failure" message="1. Test Case ID: cj1UEs&#10;&#10;- Undocumented HTTP status code&#10;&#10;    Received: 401&#10;    Documented: 200&#10;&#10;[401] Unauthorized:&#10;&#10;    `{&quot;message&quot;:&quot;user cookie (_pg.platform.u) is not available or empty&quot;}`&#10;&#10;Reproduce with:&#10;&#10;    curl -X GET -H 'Authorization: [Filtered]' 'https://api.dev-v5.privasapien.com/api/v1/application-master/applications/level?type=all'"/>
+		</testcase>
+		<testcase name="GET /api/v1/application-master/tenant-levels" time="0.154738">
+			<failure type="failure" message="1. Test Case ID: kwruJN&#10;&#10;- Undocumented HTTP status code&#10;&#10;    Received: 401&#10;    Documented: 200&#10;&#10;[401] Unauthorized:&#10;&#10;    `{&quot;message&quot;:&quot;user cookie (_pg.platform.u) is not available or empty&quot;}`&#10;&#10;Reproduce with:&#10;&#10;    curl -X GET -H 'Authorization: [Filtered]' 'https://api.dev-v5.privasapien.com/api/v1/application-master/tenant-levels?is_role_based=false'"/>
+		</testcase>
+		<testcase name="GET /api/v1/consent-manager/applications/list" time="0.104271">
+			<failure type="failure" message="1. Test Case ID: KDlAiz&#10;&#10;- Undocumented HTTP status code&#10;&#10;    Received: 401&#10;    Documented: 200&#10;&#10;[401] Unauthorized:&#10;&#10;    `{&quot;message&quot;:&quot;user cookie (_pg.platform.u) is not available or empty&quot;}`&#10;&#10;Reproduce with:&#10;&#10;    curl -X GET https://api.dev-v5.privasapien.com/api/v1/consent-manager/applications/list"/>
+			<skipped type="skipped">No examples in schema</skipped>
+		</testcase>
+		<testcase name="GET /api/v1/consent-manager/purposes/list" time="0.104512">
+			<failure type="failure" message="1. Test Case ID: jOLCTE&#10;&#10;- Undocumented HTTP status code&#10;&#10;    Received: 401&#10;    Documented: 200&#10;&#10;[401] Unauthorized:&#10;&#10;    `{&quot;message&quot;:&quot;user cookie (_pg.platform.u) is not available or empty&quot;}`&#10;&#10;Reproduce with:&#10;&#10;    curl -X GET https://api.dev-v5.privasapien.com/api/v1/consent-manager/purposes/list"/>
+			<skipped type="skipped">No examples in schema</skipped>
+		</testcase>
+		<testcase name="GET /api/v1/get_all_products" time="0.102708">
+			<failure type="failure" message="1. Test Case ID: sGHo2O&#10;&#10;- Undocumented HTTP status code&#10;&#10;    Received: 401&#10;    Documented: 200&#10;&#10;[401] Unauthorized:&#10;&#10;    `{&quot;message&quot;:&quot;user cookie (_pg.platform.u) is not available or empty&quot;}`&#10;&#10;Reproduce with:&#10;&#10;    curl -X GET https://api.dev-v5.privasapien.com/api/v1/get_all_products"/>
+			<skipped type="skipped">No examples in schema</skipped>
+		</testcase>
+		<testcase name="GET /api/v1/nebula/jobs/list" time="0.156476">
+			<failure type="failure" message="1. Test Case ID: i3XGML&#10;&#10;- Undocumented HTTP status code&#10;&#10;    Received: 401&#10;    Documented: 200&#10;&#10;[401] Unauthorized:&#10;&#10;    `{&quot;message&quot;:&quot;user cookie (_pg.platform.u) is not available or empty&quot;}`&#10;&#10;Reproduce with:&#10;&#10;    curl -X GET -H 'Authorization: [Filtered]' 'https://api.dev-v5.privasapien.com/api/v1/nebula/jobs/list?duration=year&amp;page=1&amp;limit=10'"/>
+		</testcase>
+		<testcase name="GET /api/v1/products" time="0.104119">
+			<failure type="failure" message="1. Test Case ID: duy7Ju&#10;&#10;- Undocumented HTTP status code&#10;&#10;    Received: 401&#10;    Documented: 200&#10;&#10;[401] Unauthorized:&#10;&#10;    `{&quot;message&quot;:&quot;user cookie (_pg.platform.u) is not available or empty&quot;}`&#10;&#10;Reproduce with:&#10;&#10;    curl -X GET https://api.dev-v5.privasapien.com/api/v1/products"/>
+			<skipped type="skipped">No examples in schema</skipped>
+		</testcase>
+		<testcase name="GET /api/v1/users" time="0.155997">
+			<failure type="failure" message="1. Test Case ID: djqD8d&#10;&#10;- Undocumented HTTP status code&#10;&#10;    Received: 401&#10;    Documented: 200&#10;&#10;[401] Unauthorized:&#10;&#10;    `{&quot;message&quot;:&quot;user cookie (_pg.platform.u) is not available or empty&quot;}`&#10;&#10;Reproduce with:&#10;&#10;    curl -X GET -H 'Authorization: [Filtered]' 'https://api.dev-v5.privasapien.com/api/v1/users?search='"/>
+		</testcase>
+		<testcase name="GET /api/v2/agent-plato/microservice/health" time="0.158075">
+			<failure type="failure" message="1. Test Case ID: 2w30HN&#10;&#10;- Undocumented HTTP status code&#10;&#10;    Received: 401&#10;    Documented: 200&#10;&#10;[401] Unauthorized:&#10;&#10;    `{&quot;message&quot;:&quot;user cookie (_pg.platform.u) is not available or empty&quot;}`&#10;&#10;Reproduce with:&#10;&#10;    curl -X GET -H 'Authorization: [Filtered]' 'https://api.dev-v5.privasapien.com/api/v2/agent-plato/microservice/health?deep=true'"/>
+		</testcase>
+		<testcase name="GET /api/v1/application-master/tenant-level-data" time="0.157232">
+			<failure type="failure" message="1. Test Case ID: a4KAnP&#10;&#10;- Undocumented HTTP status code&#10;&#10;    Received: 401&#10;    Documented: 200&#10;&#10;[401] Unauthorized:&#10;&#10;    `{&quot;message&quot;:&quot;user cookie (_pg.platform.u) is not available or empty&quot;}`&#10;&#10;Reproduce with:&#10;&#10;    curl -X GET -H 'Authorization: [Filtered]' 'https://api.dev-v5.privasapien.com/api/v1/application-master/tenant-level-data?level_uuid=70768703-eeb5-4ca8-b418-663ccec263cd'"/>
+		</testcase>
+		<testcase name="Stateful tests" time="33.989995">
+			<failure type="failure" message="1. Test Case ID: drknNk&#10;&#10;- API rejected schema-compliant request&#10;&#10;    Valid data should have been accepted&#10;    Expected: 2xx, 401, 403, 404, 409, 5xx&#10;&#10;- Undocumented HTTP status code&#10;&#10;    Received: 400&#10;    Documented: 200&#10;&#10;[400] Bad Request:&#10;&#10;    `{&quot;message&quot;:&quot;Malformed JWT token&quot;}`&#10;&#10;Reproduce with:&#10;&#10;    curl -X GET -H 'Authorization: [Filtered]' 'https://api.dev-v5.privasapien.com/api/v1/application-master/applications/level?type=2%F1%98%B9%85%C3%8F'"/>
+		</testcase>
+	</testsuite>
+</testsuites>

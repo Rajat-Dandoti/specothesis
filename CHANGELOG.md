@@ -41,6 +41,34 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **README install section** — added a callout warning about `SCANNER_URL_FILTER` being the
   most common cause of empty output on first use.
 
+### Fixed
+
+- **OpenAPI security scheme matches `authMethod`** — the generated spec now declares the
+  correct security scheme for each auth strategy:
+  - `bearer-login` / `bearer-static` → `bearerAuth` (HTTP Bearer)
+  - `api-key` → `apiKeyAuth` (`in: header, name: X-Api-Key`)
+  - `basic` → `basicAuth` (HTTP Basic)
+  - `none` → no `securitySchemes` block and no `security` on any operation
+  Previously every spec always declared `bearerAuth` regardless of the configured auth method.
+- **Per-endpoint `security` derived from captured traffic** — each operation now sets
+  `security: [<scheme>]` only if the captured request contained an auth header; public
+  endpoints (no auth header observed) get `security: [{}]` (OpenAPI "no auth required"
+  override). Previously every operation was unconditionally marked as requiring Bearer auth.
+- **Login operation only added for `bearer-login`** — the `POST /login` path is no longer
+  prepended to the spec for `bearer-static`, `api-key`, `basic`, or `none` auth methods.
+  Previously it appeared whenever `SCANNER_AUTH_URL` was set, regardless of auth method.
+- **`hasAuth` recognises cookie and custom auth headers** — the coverage and anomaly pipeline
+  now treats `cookie`, `x-auth-token`, `x-api-key`, `x-access-token`, and `x-authorization`
+  as authenticated traffic, not just `authorization`. This eliminates false-positive
+  `missing-auth` anomaly warnings for cookie-session and API-key based APIs.
+
+### Tests
+
+- **`tests/unit/schemaManifest.test.ts`** — 12 new unit tests for the schemathesis JUnit XML
+  parser, using a real v4.16.1 fixture (`tests/fixtures/schemathesis-junit.xml`). Covers
+  metadata, operation counts, endpoint parsing, failure/skip counting, test case ID and
+  reason extraction, and the missing-file error path.
+
 ---
 
 ## [1.2.0] — 2026-05-16 — Architecture & test coverage

@@ -56,6 +56,10 @@ export function buildCoverageSummary(entries: HarEntry[], sessionName: string): 
     }
   >();
 
+  const AUTH_REQUEST_HEADERS = new Set([
+    'authorization', 'cookie', 'x-auth-token', 'x-api-key', 'x-access-token', 'x-authorization',
+  ]);
+
   for (const entry of entries) {
     let urlObj: URL;
     try {
@@ -68,7 +72,7 @@ export function buildCoverageSummary(entries: HarEntry[], sessionName: string): 
     const normPath = normaliseCoveragePath(urlObj.pathname);
     const key = `${method}:${normPath}`;
 
-    const hasAuth = entry.request.headers.some((h) => h.name.toLowerCase() === 'authorization');
+    const hasAuth = entry.request.headers.some((h) => AUTH_REQUEST_HEADERS.has(h.name.toLowerCase()));
 
     if (!groups.has(key)) {
       groups.set(key, {

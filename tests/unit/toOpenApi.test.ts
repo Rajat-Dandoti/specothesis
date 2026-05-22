@@ -53,6 +53,7 @@ const AUTH_CFG = {
   authUsernameField: 'username',
   authPasswordField: 'password',
   authTokenPath: '$.access_token',
+  authMethod: 'bearer-login' as const,
 };
 
 // ---------------------------------------------------------------------------
