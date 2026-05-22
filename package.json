@@ -52,9 +52,9 @@
     "test:watch": "vitest",
     "lint": "eslint src/ tests/",
     "format": "prettier --write src/ tests/ scripts/",
-    "release:patch": "npm run build && npm version patch && git push && git push --tags && npm publish",
-    "release:minor": "npm run build && npm version minor && git push && git push --tags && npm publish",
-    "release:major": "npm run build && npm version major && git push && git push --tags && npm publish"
+    "release:patch": "npm run build && npm version patch && git push && git push --tags",
+    "release:minor": "npm run build && npm version minor && git push && git push --tags",
+    "release:major": "npm run build && npm version major && git push && git push --tags"
   },
   "dependencies": {
     "dotenv": "^17.4.2",
