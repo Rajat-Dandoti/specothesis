@@ -85,9 +85,11 @@ mv .env.example .env
 # set SCANNER_BASE_URL in .env
 ```
 
-> By default Specothesis captures **all XHR/fetch requests** (`SCANNER_URL_FILTER=**`). Use
-> `--filter` or `SCANNER_URL_FILTER` in `.env` to narrow captures to a specific path pattern
-> if you want to exclude noise (third-party analytics, CDN calls, etc.).
+> By default Specothesis captures **XHR and fetch requests** (`SCANNER_URL_FILTER=**`), filtering
+> out page navigations, images, scripts, and other static assets automatically. Use `--filter`
+> or `SCANNER_URL_FILTER` in `.env` to narrow captures to a specific path pattern
+> (e.g. third-party analytics, CDN calls). Pass `--all-resource-types` to disable the resource-type
+> filter entirely.
 
 **From source:**
 ```bash
@@ -105,8 +107,8 @@ Set `SCANNER_BASE_URL` in `.env` to your app's URL. Everything else has sensible
 
 ## Quickstart
 
-> **URL filter:** All XHR/fetch requests are captured by default. Use `--filter` to narrow
-> captures if you want to exclude noise (analytics, CDN, third-party calls):
+> **URL filter:** XHR and fetch requests are captured by default (page navigations, images,
+> and static assets are filtered out). Use `--filter` to further narrow by URL pattern:
 > ```bash
 > --filter "**/api/**"                   # only URLs containing /api/
 > --filter "**/v1/**"                    # only URLs containing /v1/

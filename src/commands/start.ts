@@ -10,7 +10,7 @@ import {
   deduplicateEntries,
   writeFilteredHar,
 } from '../utils/harFilter.js';
-import { enrichHarEntries } from '../utils/harNormalize.js';
+import { enrichHarEntries, injectResourceTypes, type ResourceTypeRecord } from '../utils/harNormalize.js';
 import {
   injectFormDataCapture,
   collectCapturedFormData,
@@ -76,7 +76,9 @@ export async function run(config: ScannerConfig): Promise<void> {
   const page = await context.newPage();
 
   let requestCount = 0;
+  const resourceTypeRecords: ResourceTypeRecord[] = [];
   page.on('request', (req) => {
+    resourceTypeRecords.push({ method: req.method(), url: req.url(), type: req.resourceType() });
     if (['xhr', 'fetch'].includes(req.resourceType())) {
       requestCount++;
       if (!config.quiet) console.log(`  [req] ${req.method()} ${req.url()}`);
@@ -151,8 +153,12 @@ export async function run(config: ScannerConfig): Promise<void> {
   // -------------------------------------------------------------------------
 
   const har = readHar(harPath);
+  if (!config.captureAllResourceTypes) {
+    injectResourceTypes(har, resourceTypeRecords);
+  }
   let apiEntries = filterApiEntries(har, urlFilter, {
     captureFailedRequests: config.captureFailedRequests,
+    captureAllResourceTypes: config.captureAllResourceTypes,
   });
 
   // Apply recording-window filter (excludes requests made while paused)

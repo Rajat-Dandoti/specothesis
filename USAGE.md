@@ -877,6 +877,9 @@ start:
   --include-failed      Include requests with no HTTP response (network errors, CORS,
                         cancellations — Playwright records these as status -1)
                         (env: SCANNER_CAPTURE_FAILED)
+  --all-resource-types  Capture every resource type instead of only XHR/fetch.
+                        Includes page navigations, images, scripts, stylesheets, fonts.
+                        (env: SCANNER_ALL_RESOURCE_TYPES)
 
 replay:
   --har <path>          Path to the HAR file  (required)
@@ -920,8 +923,10 @@ SCANNER_SESSION           Session name / output folder
 SCANNER_PROFILE           Saved auth profile to load
 SCANNER_SCRIPT_PATH       Automation script path
 SCANNER_QUIET             Suppress per-request log lines       default: false
-SCANNER_CAPTURE_FAILED    Include status -1 entries (network
-                          errors, CORS, cancellations)         default: false
+SCANNER_CAPTURE_FAILED        Include status -1 entries (network
+                              errors, CORS, cancellations)         default: false
+SCANNER_ALL_RESOURCE_TYPES    Capture all resource types, not just
+                              XHR/fetch (images, scripts, etc.)    default: false
 
 # Auth / credentials
 SCANNER_USERNAME                Login username

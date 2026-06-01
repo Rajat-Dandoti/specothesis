@@ -14,7 +14,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `--filter "**/api/**"` or `SCANNER_URL_FILTER=**/api/**` in `.env` to restore the old
   behaviour. The new default works out of the box for any API path convention.
 
+### Fixed
+
+- **Resource-type filter was silently disabled** — Playwright 1.x does not write `_resourceType`
+  into HAR files. The previous guard used a falsy check (`if (resourceType && ...)`) which caused
+  `undefined` to skip filtering entirely, passing page navigations, images, scripts, stylesheets,
+  and fonts through into all generated outputs. `start` now collects resource types from live
+  Playwright request events and back-fills `_resourceType` before filtering, so only `xhr`,
+  `fetch`, and `other` entries are captured by default. `replay` auto-detects HAR files without
+  `_resourceType` and skips the resource-type filter with a warning rather than excluding every entry.
+
 ### Added
+
+- **`--all-resource-types` flag** and `SCANNER_ALL_RESOURCE_TYPES` env var — opt-in to capture
+  every resource type (page navigations, images, scripts, stylesheets, fonts, etc.) instead of
+  the default XHR/fetch-only filter. Useful when replaying a HAR exported from Chrome DevTools
+  that already contains only the requests you care about, or when debugging what the full HAR
+  contains.
 
 - **`specint profile` subcommand** — manage saved auth profiles from the CLI without
   touching the filesystem directly:

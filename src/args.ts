@@ -16,7 +16,7 @@ export interface ParsedArgs {
 export function parseArgs(argv: string[]): ParsedArgs {
   const flags = minimist(argv, {
     string: ['url', 'out', 'filter', 'script', 'session', 'profile', 'save-profile', 'only', 'har'],
-    boolean: ['headless', 'help', 'list', 'version', 'quiet', 'include-failed'],
+    boolean: ['headless', 'help', 'list', 'version', 'quiet', 'include-failed', 'all-resource-types'],
     alias: { h: 'help', v: 'version', q: 'quiet' },
   });
   const rawCommand = flags._[0] as string | undefined;
@@ -44,6 +44,7 @@ Options:
                          Implied deps: anomalies→coverage, drift→coverage, html→all three
   --quiet / -q           Suppress per-request [req]/[res] log lines  (env: SCANNER_QUIET)
   --include-failed       Include requests that received no HTTP response  (env: SCANNER_CAPTURE_FAILED)
+  --all-resource-types   Capture all resource types, not just XHR/fetch  (env: SCANNER_ALL_RESOURCE_TYPES)
   --version / -v         Print version and exit
   --help / -h            Show this help
 

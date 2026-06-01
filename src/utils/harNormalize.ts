@@ -7,7 +7,38 @@
  * can read structured fields without dealing with raw boundaries.
  */
 
-import type { HarEntry, HarPostDataParam } from './harFilter.js';
+import type { HarEntry, HarPostDataParam, Har } from './harFilter.js';
+
+export interface ResourceTypeRecord {
+  method: string;
+  url: string;
+  type: string;
+}
+
+/**
+ * Playwright 1.x does not write _resourceType into HAR files.
+ * Back-fill it from live request-event captures so filterApiEntries() can filter correctly.
+ * Uses order-preserving bucket matching for duplicate method+url pairs.
+ */
+export function injectResourceTypes(har: Har, records: ResourceTypeRecord[]): void {
+  const buckets = new Map<string, string[]>();
+  for (const { method, url, type } of records) {
+    const key = `${method.toUpperCase()}:${url}`;
+    const arr = buckets.get(key);
+    if (arr) arr.push(type);
+    else buckets.set(key, [type]);
+  }
+
+  const consumed = new Map<string, number>();
+  for (const entry of har.log.entries) {
+    const key = `${entry.request.method.toUpperCase()}:${entry.request.url}`;
+    const types = buckets.get(key);
+    if (!types) continue;
+    const idx = consumed.get(key) ?? 0;
+    entry._resourceType = types[Math.min(idx, types.length - 1)];
+    consumed.set(key, idx + 1);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Multipart boundary text parser

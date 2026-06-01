@@ -38,8 +38,20 @@ export async function run(config: ScannerConfig, harPath: string): Promise<void>
     process.exit(1);
   }
 
+  // HAR files from Playwright 1.x lack _resourceType; fall back to URL-only filtering
+  // rather than excluding every entry. Chrome DevTools HAR exports do include _resourceType.
+  const harHasResourceTypes = har.log.entries.some((e) => e._resourceType);
+  const captureAllResourceTypes = config.captureAllResourceTypes || !harHasResourceTypes;
+  if (!harHasResourceTypes && !config.captureAllResourceTypes) {
+    console.warn(
+      '  Note: HAR has no _resourceType fields — resource-type filter skipped. ' +
+      'Use --all-resource-types to suppress this warning.'
+    );
+  }
+
   let apiEntries = filterApiEntries(har, urlFilter, {
     captureFailedRequests: config.captureFailedRequests,
+    captureAllResourceTypes,
   });
 
   if (apiEntries.length === 0) {

@@ -80,7 +80,7 @@ export function readHar(harPath: string): Har {
 export function filterApiEntries(
   har: Har,
   urlFilter: string,
-  opts: { captureFailedRequests?: boolean } = {}
+  opts: { captureFailedRequests?: boolean; captureAllResourceTypes?: boolean } = {}
 ): HarEntry[] {
   const filterRegex = globToRegex(urlFilter);
 
@@ -91,10 +91,13 @@ export function filterApiEntries(
 
     if (!filterRegex.test(url)) return false;
 
-    // Exclude page navigations and browser-initiated static asset loads.
+    // Exclude page navigations and browser-initiated static asset loads unless
+    // the user explicitly wants all resource types.
     // 'other' covers service-worker fetches and some XHR recorders.
-    const resourceType = entry._resourceType;
-    if (resourceType && !['xhr', 'fetch', 'other'].includes(resourceType)) return false;
+    if (!opts.captureAllResourceTypes) {
+      const resourceType = entry._resourceType;
+      if (!resourceType || !['xhr', 'fetch', 'other'].includes(resourceType)) return false;
+    }
 
     // Playwright records -1 for requests that never received an HTTP response
     // (network error, cancelled, CORS preflight failure). These produce invalid

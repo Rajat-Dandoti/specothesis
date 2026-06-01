@@ -163,6 +163,12 @@ export interface ScannerConfig {
    * Default: false — these entries produce invalid OpenAPI status codes.
    */
   captureFailedRequests: boolean;
+  /**
+   * When true, skip resource-type filtering and capture every request regardless of type
+   * (including page navigations, images, scripts, stylesheets, fonts, etc.).
+   * Default: false — only xhr, fetch, and other resource types are captured.
+   */
+  captureAllResourceTypes: boolean;
 }
 
 const VALID_AUTH_METHODS: AuthMethod[] = ['bearer-login', 'bearer-static', 'api-key', 'basic', 'none'];
@@ -238,6 +244,7 @@ export const defaultConfig: ScannerConfig = {
 
   quiet: envBool('SCANNER_QUIET', false),
   captureFailedRequests: envBool('SCANNER_CAPTURE_FAILED', false),
+  captureAllResourceTypes: envBool('SCANNER_ALL_RESOURCE_TYPES', false),
 };
 
 /**

@@ -90,6 +90,7 @@ let config = resolveConfig({
   saveProfile: argv['save-profile'],
   quiet: argv.quiet ? true : undefined,
   captureFailedRequests: argv['include-failed'] ? true : undefined,
+  captureAllResourceTypes: argv['all-resource-types'] ? true : undefined,
 });
 
 if (argv.only) {
