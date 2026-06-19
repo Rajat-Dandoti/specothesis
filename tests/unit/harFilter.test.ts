@@ -56,11 +56,19 @@ describe('filterApiEntries', () => {
     expect(result[0]._resourceType).toBe('fetch');
   });
 
-  it('keeps entries with no resourceType', () => {
+  it('excludes entries with no resourceType by default', () => {
     const entry = makeEntry({ url: 'https://api.example.com/api/users' });
     delete entry._resourceType;
     const har = makeHar([entry]);
     const result = filterApiEntries(har, '**/api/**');
+    expect(result).toHaveLength(0);
+  });
+
+  it('keeps entries with no resourceType when captureAllResourceTypes=true', () => {
+    const entry = makeEntry({ url: 'https://api.example.com/api/users' });
+    delete entry._resourceType;
+    const har = makeHar([entry]);
+    const result = filterApiEntries(har, '**/api/**', { captureAllResourceTypes: true });
     expect(result).toHaveLength(1);
   });
 });
