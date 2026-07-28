@@ -26,7 +26,14 @@ export async function run(config: ScannerConfig): Promise<void> {
   const browser = await chromium.launch({ headless });
   const context = await browser.newContext();
   const page = await context.newPage();
-  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+  try {
+    await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+  } catch (err) {
+    await context.close();
+    await browser.close();
+    console.error(`\nCould not reach "${baseUrl}". Is the server running?\n  ${err instanceof Error ? err.message : err}`);
+    process.exit(1);
+  }
 
   const { saved } = await waitForSave();
 

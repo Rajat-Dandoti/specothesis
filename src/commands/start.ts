@@ -8,7 +8,6 @@ import {
   filterApiEntries,
   filterByWindows,
   deduplicateEntries,
-  writeFilteredHar,
 } from '../utils/harFilter.js';
 import { enrichHarEntries, injectResourceTypes, type ResourceTypeRecord } from '../utils/harNormalize.js';
 import {
@@ -43,7 +42,7 @@ export async function run(config: ScannerConfig): Promise<void> {
 
   const runDir = makeSessionDir(sessionName);
   const harPath = path.join(runDir, 'raw.har');
-  const filteredHarPath = path.join(runDir, 'filtered.har');
+
 
   console.log(`\n=== Specothesis — Session: "${sessionName}" ===`);
   console.log(`  URL:     ${baseUrl}`);
@@ -94,7 +93,12 @@ export async function run(config: ScannerConfig): Promise<void> {
     }
   });
 
-  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+  try {
+    await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+  } catch (err) {
+    await browser.close();
+    throw new CaptureError(`Could not reach "${baseUrl}". Is the server running?\n  ${err instanceof Error ? err.message : err}`);
+  }
 
   // -------------------------------------------------------------------------
   // Journey
@@ -200,6 +204,5 @@ export async function run(config: ScannerConfig): Promise<void> {
     }
   }
 
-  writeFilteredHar(har, apiEntries, filteredHarPath);
   runPipeline({ apiEntries, har, sessionName, runDir, baseUrl, config });
 }

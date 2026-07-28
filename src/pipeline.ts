@@ -93,7 +93,11 @@ export function runPipeline({ apiEntries, har, sessionName, runDir, baseUrl, con
 
   const relDir = path.relative(process.cwd(), runDir);
   console.log(`\nDone. Outputs in:\n  ${relDir}\n`);
-  console.log('Next steps:');
-  console.log(`  schemathesis run ${relDir}/openapi.yaml --url ${baseUrl} --checks all`);
-  console.log(`  stepci run ${relDir}/stepci-workflow.yaml`);
+  const suggestions: string[] = [];
+  if (config.features.openapi) suggestions.push(`  schemathesis run ${relDir}/openapi.yaml --url ${baseUrl} --checks all`);
+  if (config.features.stepci) suggestions.push(`  stepci run ${relDir}/stepci-workflow.yaml`);
+  if (suggestions.length > 0) {
+    console.log('Next steps:');
+    suggestions.forEach((s) => console.log(s));
+  }
 }

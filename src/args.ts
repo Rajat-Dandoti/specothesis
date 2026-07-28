@@ -58,7 +58,7 @@ Interactive controls (manual mode):
 Options:
   --har <path>           Path to an existing HAR file (required)
   --session <name>       Output folder name (default: HAR filename without extension)
-  --filter <glob>        URL filter — same as start  (default: **/api/**)
+  --filter <glob>        URL filter — same as start  (default: **)
   --only <outputs>       Comma-separated outputs: openapi, stepci, curl, coverage, anomalies, drift, html`,
 
   login: `Usage: specint login --url <url> --save-profile <name>
