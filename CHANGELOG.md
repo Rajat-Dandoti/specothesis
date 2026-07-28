@@ -5,7 +5,56 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [Unreleased] — v1.3.0 in progress
+## [1.3.0] — 2026-07-28
+
+### Added
+
+- **Multi-example capture per endpoint** — when the same endpoint is called multiple times
+  with different payloads or query params, all variations are now preserved in the generated
+  outputs instead of the previous last-call-wins behaviour:
+  - **Query params unioned** — all parameter names seen across every call to an endpoint are
+    included in the OpenAPI spec. Previously only the last call's query string was used.
+  - **Request body `examples` map** — when an endpoint receives different payloads across
+    calls, the spec uses `examples:` (plural) with entries named `call_1`, `call_2`, etc.
+    instead of a single `example:`. Single-call endpoints keep the existing `example:` field.
+  - **All response status codes captured** — if the same endpoint returns `200` on some calls
+    and `400` / `404` on others, every observed status code appears in the spec with its own
+    response schema and examples. Previously only the last call's status was recorded.
+
+### Fixed
+
+- **`toCurl`: auth header was non-functional for all authenticated APIs** — the generated
+  `Authorization` header used single quotes (`-H 'Authorization: $SCANNER_AUTH_TOKEN'`),
+  which suppresses shell variable expansion in POSIX shells. The token was also emitted
+  without its scheme prefix. Fixed: double quotes and the original scheme are now preserved
+  (`-H "Authorization: Bearer $SCANNER_AUTH_TOKEN"`).
+- **`formDataCapture`: `fetch(new Request(...))` pattern silently dropped** — the browser-side
+  intercept only triggered when `body` was on the `init` argument. Modern apps increasingly
+  pass a `Request` object as the first argument with no `init`. These FormData uploads are
+  now captured correctly.
+- **`interactive`: final recording window duplicated on `q`** — pressing `q` pushed the
+  closing window then called `rl.close()`, which triggered the close handler while `status`
+  was still `'recording'`, pushing a second identical window. A new `'stopping'` status
+  prevents the close handler from firing after an intentional quit.
+- **`harNormalize`: multipart bodies with LF-only line endings produced empty params** — the
+  multipart parser required `\r\n\r\n` as the header–body separator. Any server or reverse
+  proxy that normalises to `\n` caused all fields to be silently dropped, resulting in no
+  request body in the OpenAPI spec and a broken curl script. Line endings are now normalised
+  before parsing.
+- **`pathNormalise`: modern ID formats created one path per unique ID call** — the ID regex
+  only recognised plain integers, UUID v4, and MongoDB ObjectId. APIs using ULID, CUID,
+  NanoID, Snowflake IDs, Firebase UIDs, or other ≥20-char alphanumeric identifiers caused
+  the OpenAPI spec to explode with one operation per unique ID instead of a single
+  parameterised path. The regex now covers ULID, NanoID (21-char base64url), and a catch-all
+  for any segment ≥20 alphanumeric characters.
+- **`start`: automation script execution error leaked Chromium process** — if an automation
+  script loaded successfully but threw during execution, the error propagated without closing
+  the browser or context, leaving a zombie Chromium process running until the OS killed it.
+  The script call is now wrapped in try/catch with `browser.close()` in the error path.
+- **`drift`: baseline detection broken for session names ending in a digit** — session names
+  like `sprint-3` or `v2` were parsed with a lazy regex that split the numeric suffix
+  incorrectly, causing drift to always return null for these common naming patterns. The
+  regex is replaced with an explicit `-(\d+)$` suffix split.
 
 ### Changed (breaking default)
 
