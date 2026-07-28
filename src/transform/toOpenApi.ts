@@ -356,7 +356,7 @@ interface OperationGroup {
   pathTemplate: string;
   paramNames: string[];
   entryServerUrl: string; // origin of the actual entry URL
-  entry: HarEntry;
+  entries: HarEntry[]; // all entries for this endpoint; last-wins for body/response
 }
 
 export interface OpenApiInfoOverrides {
@@ -417,15 +417,16 @@ export function toOpenApi(
     const key = `${entry.request.method.toUpperCase()}:${entryServerUrl}:${template}`;
 
     if (groups.has(key)) {
-      console.warn(`  [openapi] WARNING: duplicate entry for ${entry.request.method.toUpperCase()} ${template} — last entry wins.`);
+      groups.get(key)!.entries.push(entry);
+    } else {
+      groups.set(key, {
+        method: entry.request.method.toLowerCase(),
+        pathTemplate: template,
+        paramNames,
+        entryServerUrl,
+        entries: [entry],
+      });
     }
-    groups.set(key, {
-      method: entry.request.method.toLowerCase(),
-      pathTemplate: template,
-      paramNames,
-      entryServerUrl,
-      entry,
-    });
   }
 
   // Build paths — login first so it appears at the top in Swagger UI
@@ -448,7 +449,8 @@ export function toOpenApi(
     `${a.method}:${a.pathTemplate}`.localeCompare(`${b.method}:${b.pathTemplate}`)
   );
 
-  for (const { method, pathTemplate, paramNames, entryServerUrl, entry } of sortedGroups) {
+  for (const { method, pathTemplate, paramNames, entryServerUrl, entries } of sortedGroups) {
+    const lastEntry = entries[entries.length - 1];
     if (!paths[pathTemplate]) paths[pathTemplate] = {};
     const pathItem = paths[pathTemplate] as Record<string, unknown>;
 
@@ -459,8 +461,14 @@ export function toOpenApi(
       schema: { type: 'string' },
     }));
 
-    const urlObj = new URL(entry.request.url);
-    for (const [k, v] of urlObj.searchParams) {
+    // Union query params across all calls to this endpoint; first-seen value as example
+    const seenQueryParams = new Map<string, string>();
+    for (const e of entries) {
+      for (const [k, v] of new URL(e.request.url).searchParams) {
+        if (!seenQueryParams.has(k)) seenQueryParams.set(k, v);
+      }
+    }
+    for (const [k, v] of seenQueryParams) {
       parameters.push({
         name: k,
         in: 'query',
@@ -470,11 +478,81 @@ export function toOpenApi(
       });
     }
 
-    const requestBody = buildRequestBodySpec(entry.request.postData, includeExamples, redact);
-    const responseSchema = buildResponseSchema(entry.response.content.text, includeExamples, redact);
-    const responseContent = responseSchema
-      ? { 'application/json': { schema: responseSchema } }
-      : undefined;
+    // Request body: schema from last entry; collect examples from all entries
+    const requestBody = buildRequestBodySpec(lastEntry.request.postData, false, redact);
+    if (requestBody && includeExamples) {
+      const bodyExamples: unknown[] = [];
+      for (const e of entries) {
+        const pd = e.request.postData;
+        if (!pd) continue;
+        const mime = pd.mimeType ?? '';
+        if (mime.toLowerCase().includes('application/json') && pd.text) {
+          try {
+            const val = JSON.parse(pd.text);
+            bodyExamples.push(redact ? redactObject(val) : val);
+          } catch { /* not JSON */ }
+        } else if (mime.toLowerCase().includes('multipart/form-data') && (pd.params ?? []).length > 0) {
+          const ex: Record<string, unknown> = {};
+          for (const p of pd.params!) {
+            ex[p.name] = p.fileName ? `<path/to/${p.fileName}>` : ((redact && isSensitiveKey(p.name)) ? '[REDACTED]' : (p.value ?? ''));
+          }
+          bodyExamples.push(ex);
+        } else if (mime.toLowerCase().includes('application/x-www-form-urlencoded')) {
+          const params = pd.params ?? [];
+          const ex: Record<string, unknown> = {};
+          if (params.length > 0) {
+            for (const p of params) ex[p.name] = (redact && isSensitiveKey(p.name)) ? '[REDACTED]' : (p.value ?? '');
+          } else if (pd.text) {
+            for (const [k, v] of new URLSearchParams(pd.text)) ex[k] = (redact && isSensitiveKey(k)) ? '[REDACTED]' : v;
+          }
+          if (Object.keys(ex).length > 0) bodyExamples.push(ex);
+        } else if (pd.text) {
+          bodyExamples.push(pd.text);
+        }
+      }
+      const content = requestBody.content as Record<string, Record<string, unknown>>;
+      for (const contentEntry of Object.values(content)) {
+        if (bodyExamples.length === 1) {
+          contentEntry.example = bodyExamples[0];
+        } else if (bodyExamples.length > 1) {
+          contentEntry.examples = Object.fromEntries(bodyExamples.map((v, i) => [`call_${i + 1}`, { value: v }]));
+        }
+      }
+    }
+
+    // Responses: merge all status codes across calls; collect examples per status
+    const responsesObj: Record<string, unknown> = {};
+    const responseExamplesByStatus = new Map<string, unknown[]>();
+    for (const e of entries) {
+      const statusKey = String(e.response.status);
+      const responseSchema = buildResponseSchema(e.response.content.text, false, redact);
+      if (!responsesObj[statusKey]) {
+        responsesObj[statusKey] = {
+          description: e.response.statusText || 'OK',
+          ...(responseSchema ? { content: { 'application/json': { schema: responseSchema } } } : {}),
+        };
+      }
+      if (includeExamples && e.response.content.text) {
+        try {
+          const val = JSON.parse(e.response.content.text);
+          const exVal = redact ? redactObject(val) : val;
+          if (!responseExamplesByStatus.has(statusKey)) responseExamplesByStatus.set(statusKey, []);
+          responseExamplesByStatus.get(statusKey)!.push(exVal);
+        } catch { /* not JSON */ }
+      }
+    }
+    if (includeExamples) {
+      for (const [statusKey, exList] of responseExamplesByStatus) {
+        const resp = responsesObj[statusKey] as Record<string, unknown>;
+        const jsonContent = ((resp?.content as Record<string, unknown> | undefined)?.['application/json']) as Record<string, unknown> | undefined;
+        if (!jsonContent) continue;
+        if (exList.length === 1) {
+          jsonContent.example = exList[0];
+        } else {
+          jsonContent.examples = Object.fromEntries(exList.map((v, i) => [`call_${i + 1}`, { value: v }]));
+        }
+      }
+    }
 
     // Deduplicated operationId
     const baseId = deriveOperationId(method, pathTemplate);
@@ -487,7 +565,7 @@ export function toOpenApi(
 
     const securityRef = securityRefForMethod(authCfg.authMethod);
     const operationSecurity = securityRef
-      ? entryHasAuth(entry) ? [securityRef] : [{}]
+      ? entryHasAuth(lastEntry) ? [securityRef] : [{}]
       : undefined;
 
     const operation: Record<string, unknown> = {
@@ -497,12 +575,7 @@ export function toOpenApi(
       ...(parameters.length > 0 ? { parameters } : {}),
       ...(requestBody ? { requestBody } : {}),
       ...(operationSecurity !== undefined ? { security: operationSecurity } : {}),
-      responses: {
-        [String(entry.response.status)]: {
-          description: entry.response.statusText || 'OK',
-          ...(responseContent ? { content: responseContent } : {}),
-        },
-      },
+      responses: responsesObj,
     };
 
     // Per-operation server override when this entry's host differs from the configured base
