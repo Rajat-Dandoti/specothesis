@@ -69,7 +69,10 @@ export function getBrowserScript(): string {
   var _fetch = window.fetch;
   window.fetch = function (input, init) {
     try {
-      if (init && init.body instanceof FormData) {
+      var body = (init && init.body) || (input instanceof Request ? input.body : null);
+      var method = (init && init.method) || (input instanceof Request ? input.method : 'POST');
+      var headers = (init && init.headers) || (input instanceof Request ? input.headers : null);
+      if (body instanceof FormData) {
         var url =
           typeof input === 'string'
             ? input
@@ -80,12 +83,12 @@ export function getBrowserScript(): string {
         if (url && !url.startsWith('http')) {
           try { url = new URL(url, window.location.href).href; } catch (e) {}
         }
-        var ct = (init.headers && (init.headers['content-type'] || init.headers['Content-Type'])) || 'multipart/form-data';
+        var ct = (headers && (headers['content-type'] || headers['Content-Type'])) || 'multipart/form-data';
         window.__apiScannerFd.push({
           url: url,
-          method: (init.method || 'POST').toUpperCase(),
+          method: (method || 'POST').toUpperCase(),
           timestamp: new Date().toISOString(),
-          params: extractParams(init.body, ct),
+          params: extractParams(body, ct),
           mimeType: ct,
         });
       }

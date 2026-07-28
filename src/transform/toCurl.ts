@@ -31,7 +31,8 @@ function buildHeaders(headers: Array<{ name: string; value: string }>): string[]
     .filter((h) => !SKIP_HEADERS.has(h.name.toLowerCase()))
     .map((h) => {
       if (h.name.toLowerCase() === 'authorization') {
-        return `-H 'Authorization: $SCANNER_AUTH_TOKEN'`;
+        const scheme = h.value.split(' ')[0] ?? 'Bearer';
+        return `-H "Authorization: ${scheme} $SCANNER_AUTH_TOKEN"`;
       }
       return `-H ${shellQuote(`${h.name}: ${h.value}`)}`;
     });

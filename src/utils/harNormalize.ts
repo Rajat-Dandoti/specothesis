@@ -61,17 +61,19 @@ export function parseMultipartText(text: string, boundary: string): HarPostDataP
   const params: HarPostDataParam[] = [];
   const delimiter = `--${boundary}`;
 
-  const parts = text.split(delimiter);
+  // Normalise line endings so both CRLF and LF-only bodies parse correctly
+  const normalised = text.replace(/\r\n/g, '\n');
+  const parts = normalised.split(delimiter);
 
   for (const part of parts) {
     const trimmed = part.trimStart();
     if (trimmed === '' || trimmed.startsWith('--')) continue;
 
-    const headerBodySep = part.indexOf('\r\n\r\n');
+    const headerBodySep = part.indexOf('\n\n');
     if (headerBodySep === -1) continue;
 
     const headerBlock = part.slice(0, headerBodySep);
-    const body = part.slice(headerBodySep + 4).replace(/\r\n$/, '');
+    const body = part.slice(headerBodySep + 2).replace(/\n$/, '');
 
     const dispositionMatch = headerBlock.match(
       /Content-Disposition:\s*form-data;\s*name="([^"]+)"(?:;\s*filename="([^"]*)")?/i
@@ -81,7 +83,7 @@ export function parseMultipartText(text: string, boundary: string): HarPostDataP
     const name = dispositionMatch[1];
     const fileName = dispositionMatch[2] ?? undefined;
 
-    const ctMatch = headerBlock.match(/Content-Type:\s*([^\r\n]+)/i);
+    const ctMatch = headerBlock.match(/Content-Type:\s*([^\n]+)/i);
     const contentType = ctMatch?.[1]?.trim();
 
     params.push({

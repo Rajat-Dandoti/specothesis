@@ -26,7 +26,7 @@ export interface RecordingWindow {
   end: string; // ISO timestamp when paused / stopped
 }
 
-type Status = 'recording' | 'paused';
+type Status = 'recording' | 'paused' | 'stopping';
 
 export interface InteractiveLoop {
   /** Resolves with completed recording windows when the user types 'q'. */
@@ -91,6 +91,7 @@ export function startInteractiveLoop(
             if (status === 'recording') {
               windows.push({ start: windowStart, end: now() });
             }
+            status = 'stopping' as Status;
             console.log('\n  Stopping session...');
             rl.close();
             resolve(windows);
@@ -105,6 +106,7 @@ export function startInteractiveLoop(
         });
 
         rl.on('close', () => {
+          if (status === 'stopping') return; // q handler already resolved
           if (status === 'recording') {
             windows.push({ start: windowStart, end: now() });
           }

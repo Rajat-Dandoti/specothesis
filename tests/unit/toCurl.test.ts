@@ -93,7 +93,7 @@ describe('toCurl — Authorization header', () => {
     });
     toCurl([entry], tmpDir);
     const output = getCombined(tmpDir);
-    expect(output).toContain('Authorization: $SCANNER_AUTH_TOKEN');
+    expect(output).toContain('Authorization: Bearer $SCANNER_AUTH_TOKEN');
     expect(output).not.toContain('secret-token');
   });
 });

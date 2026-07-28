@@ -116,7 +116,14 @@ export async function run(config: ScannerConfig): Promise<void> {
       );
     }
     const fn = script.default || script;
-    await fn(page, context, config);
+    try {
+      await fn(page, context, config);
+    } catch (err) {
+      await browser.close();
+      throw new CaptureError(
+        `Script failed during execution: ${err instanceof Error ? err.message : err}`
+      );
+    }
     console.log('Script completed.');
   } else {
     // Manual journey with interactive pause / resume / stop

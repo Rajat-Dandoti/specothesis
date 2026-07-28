@@ -43,10 +43,10 @@ export function loadPreviousCoverage(currentDir: string): CoverageSummary | null
   const capturesDir = path.dirname(currentDir);
   const currentName = path.basename(currentDir);
 
-  const match = currentName.match(/^(.+?)(-(\d+))?$/);
-  if (!match) return null;
-  const baseName = match[1];
-  const currentNum = match[3] ? parseInt(match[3]) : 1;
+  // Split off a trailing -N suffix (only a plain integer after the last dash counts)
+  const suffixMatch = currentName.match(/^(.*)-(\d+)$/);
+  const baseName = suffixMatch ? suffixMatch[1] : currentName;
+  const currentNum = suffixMatch ? parseInt(suffixMatch[2]) : 1;
 
   if (currentNum <= 1) return null; // base run — nothing to compare against
 
@@ -57,9 +57,10 @@ export function loadPreviousCoverage(currentDir: string): CoverageSummary | null
       .readdirSync(capturesDir)
       .filter((d) => d !== currentName)
       .map((d) => {
-        const m = d.match(/^(.+?)(-(\d+))?$/);
+        if (d === baseName) return { name: d, num: 1 };
+        const m = d.match(/^(.*)-(\d+)$/);
         if (!m || m[1] !== baseName) return null;
-        return { name: d, num: m[3] ? parseInt(m[3]) : 1 };
+        return { name: d, num: parseInt(m[2]) };
       })
       .filter((s): s is { name: string; num: number } => s !== null)
       .filter((s) => fs.existsSync(path.join(capturesDir, s.name, 'coverage.json')));
