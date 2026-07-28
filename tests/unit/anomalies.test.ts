@@ -127,6 +127,16 @@ describe('anomalies — large-response rule', () => {
     const anomalies = detectAnomalies(makeSummary([ep]), [makeEntry({ bodySize: 100 })]);
     expect(anomalies.some((a) => a.rule === 'large-response')).toBe(false);
   });
+
+  it('fires when bodySize is -1 (gzip) but content.size exceeds limit', () => {
+    const ep = makeEndpoint({ responseSizes: [614400] });
+    // HAR records bodySize=-1 for gzip; content.size has the decompressed size
+    const entry = makeEntry({ bodySize: 614400 });
+    entry.response.bodySize = -1;
+    entry.response.content.size = 614400;
+    const anomalies = detectAnomalies(makeSummary([ep]), [entry]);
+    expect(anomalies.some((a) => a.rule === 'large-response')).toBe(true);
+  });
 });
 
 describe('anomalies — repeated-calls rule', () => {

@@ -14,7 +14,11 @@ import { ID_SEGMENT } from '../utils/pathNormalise.js';
 type JsonSchema = Record<string, unknown>;
 
 function mergeObjectSchemas(schemas: JsonSchema[]): JsonSchema {
-  if (!schemas.every((s) => s.type === 'object')) return schemas[0] ?? {};
+  if (!schemas.every((s) => s.type === 'object')) {
+    // Homogeneous non-object array (e.g. all integers): keep type. Heterogeneous: no constraint.
+    const firstType = schemas[0]?.type;
+    return schemas.every((s) => s.type === firstType) ? (schemas[0] ?? {}) : {};
+  }
   const allKeys = new Set(schemas.flatMap((s) => Object.keys((s.properties as object) ?? {})));
   const properties: Record<string, JsonSchema> = {};
   for (const k of allKeys) {
@@ -469,11 +473,17 @@ export function toOpenApi(
       }
     }
     for (const [k, v] of seenQueryParams) {
+      // Coerce string values from URLSearchParams to their real type before schema inference
+      const coerced: unknown =
+        v === 'true' ? true :
+        v === 'false' ? false :
+        v !== '' && Number.isFinite(Number(v)) ? Number(v) :
+        v;
       parameters.push({
         name: k,
         in: 'query',
         required: false,
-        schema: inferSchema(v),
+        schema: inferSchema(coerced),
         example: (redact && isSensitiveKey(k)) ? '[REDACTED]' : v,
       });
     }

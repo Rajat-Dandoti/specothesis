@@ -95,9 +95,10 @@ function buildHeaders(
 }
 
 function buildJsonpathChecks(
-  responseText: string | undefined
+  responseText: string | undefined,
+  status: number
 ): Record<string, Array<Record<string, boolean>>> | undefined {
-  if (!responseText) return undefined;
+  if (!responseText || status >= 400) return undefined;
 
   let parsed: unknown;
   try {
@@ -106,7 +107,13 @@ function buildJsonpathChecks(
     return undefined;
   }
 
-  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return undefined;
+  if (parsed === null) return undefined;
+
+  if (Array.isArray(parsed)) {
+    return { '$.length': [{ isPresent: true }] };
+  }
+
+  if (typeof parsed !== 'object') return undefined;
 
   const checks: Record<string, Array<Record<string, boolean>>> = {};
   for (const key of Object.keys(parsed as Record<string, unknown>).slice(0, 5)) {
@@ -210,7 +217,7 @@ function entryToStep(
     authScheme,
   });
   const bodyFields = buildRequestBody(postData, redact);
-  const jsonpath = buildJsonpathChecks(content.text);
+  const jsonpath = buildJsonpathChecks(content.text, status);
 
   const step: StepciStep = {
     name: stepName,
@@ -298,19 +305,27 @@ export function toStepci(
   const useCaptures = !!authUrl;
 
   // Extract the API host from the first entry for the env block
+  // Derive API_HOST from most-frequent origin across all entries (same heuristic as toOpenApi)
   let apiHost: string | undefined;
   if (entries.length > 0) {
-    try {
-      apiHost = new URL(entries[0].request.url).origin;
-    } catch {
-      // leave undefined
+    const freq = new Map<string, number>();
+    for (const e of entries) {
+      try {
+        const o = new URL(e.request.url).origin;
+        freq.set(o, (freq.get(o) ?? 0) + 1);
+      } catch { /* skip */ }
     }
+    apiHost = [...freq.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
   }
 
+  // Exclude the login entry by full URL (origin + pathname) not just pathname
   const filteredEntries = authUrl
     ? entries.filter(e => {
-        try { return new URL(e.request.url).pathname !== new URL(authUrl).pathname; }
-        catch { return true; }
+        try {
+          const eu = new URL(e.request.url);
+          const au = new URL(authUrl);
+          return !(eu.origin === au.origin && eu.pathname === au.pathname);
+        } catch { return true; }
       })
     : entries;
 

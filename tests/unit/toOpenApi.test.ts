@@ -114,7 +114,7 @@ describe('inferSchema', () => {
     expect(inferSchema('hello').type).toBe('string');
   });
 
-  it('infers array with items schema', () => {
+  it('infers homogeneous array item type correctly', () => {
     const schema = inferSchema([1, 2, 3]);
     expect(schema.type).toBe('array');
     expect((schema.items as Record<string, unknown>).type).toBe('integer');
@@ -205,6 +205,39 @@ describe('toOpenApi — end-to-end', () => {
     const content = rb?.content as Record<string, Record<string, unknown>> | undefined;
     const example = content?.['application/x-www-form-urlencoded']?.example as Record<string, unknown> | undefined;
     expect(example?.password).toBe('hunter2');
+  });
+
+  it('heterogeneous array items produce unconstrained schema', () => {
+    // [1, "active", null] — mixed types should not emit a wrong type
+    const schema = inferSchema([1, 'active', null]);
+    expect(schema.type).toBe('array');
+    expect((schema.items as Record<string, unknown>).type).toBeUndefined();
+  });
+
+  it('query param ?page=2 schema is integer not string', () => {
+    const dir = makeTempDir();
+    const entries = [makeEntry({ url: 'https://api.example.com/api/users?page=2&limit=20' })];
+    toOpenApi(entries, dir, 'https://api.example.com', undefined, false, AUTH_CFG);
+    const spec = JSON.parse(fs.readFileSync(path.join(dir, 'openapi.json'), 'utf-8')) as Record<string, unknown>;
+    const paths = spec.paths as Record<string, Record<string, unknown>>;
+    const op = paths['/api/users']?.get as Record<string, unknown>;
+    const params = op?.parameters as Array<Record<string, unknown>>;
+    const pageParam = params?.find((p) => p.name === 'page');
+    const limitParam = params?.find((p) => p.name === 'limit');
+    expect((pageParam?.schema as Record<string, unknown>)?.type).toBe('integer');
+    expect((limitParam?.schema as Record<string, unknown>)?.type).toBe('integer');
+  });
+
+  it('query param ?active=true schema is boolean', () => {
+    const dir = makeTempDir();
+    const entries = [makeEntry({ url: 'https://api.example.com/api/users?active=true' })];
+    toOpenApi(entries, dir, 'https://api.example.com', undefined, false, AUTH_CFG);
+    const spec = JSON.parse(fs.readFileSync(path.join(dir, 'openapi.json'), 'utf-8')) as Record<string, unknown>;
+    const paths = spec.paths as Record<string, Record<string, unknown>>;
+    const op = paths['/api/users']?.get as Record<string, unknown>;
+    const params = op?.parameters as Array<Record<string, unknown>>;
+    const activeParam = params?.find((p) => p.name === 'active');
+    expect((activeParam?.schema as Record<string, unknown>)?.type).toBe('boolean');
   });
 
   it('puts login path first when authUrl is set', () => {

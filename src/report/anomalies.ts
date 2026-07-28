@@ -89,9 +89,9 @@ function buildRules(): Rule[] {
       severity: 'info',
       check(_ep, epEntries, opts) {
         const limit = (opts.largeKb ?? 500) * 1024;
-        const large = epEntries.find((e) => e.response.bodySize > limit);
+        const large = epEntries.find((e) => Math.max(e.response.bodySize, e.response.content.size ?? 0) > limit);
         if (!large) return null;
-        const kb = Math.round(large.response.bodySize / 1024);
+        const kb = Math.round(Math.max(large.response.bodySize, large.response.content.size ?? 0) / 1024);
         return `Response body ${kb}kb — worth checking pagination`;
       },
     },
