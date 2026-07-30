@@ -5,6 +5,33 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.4.0] — 2026-07-30
+
+### Added
+
+- **Request timing waterfall** — `report.html` now opens with an SVG waterfall chart showing
+  every API call as a method-colored bar, positioned by start offset from session start, with
+  duration labels and a ms/s axis. Useful for spotting sequential-when-parallelizable patterns
+  and slow legs at a glance.
+
+- **Cache effectiveness audit** — two new anomaly rules:
+  - `no-cache-headers`: GET endpoints called 2+ times with no `Cache-Control` or `ETag` in
+    responses — flags repeated data transfer that caching could short-circuit.
+  - `etag-unused`: server sends `ETag` in responses but the client never sends `If-None-Match`
+    on subsequent requests — server supports conditional requests but the client ignores them.
+  Both appear in `anomalies.json` and the HTML report's anomaly section.
+
+- **Auth token lifecycle report** — new `auth-audit.json` output and dedicated section in
+  `report.html` showing:
+  - Call counts with vs. without auth, and auth coverage percentage.
+  - Endpoints that received no `Authorization` header (potential unprotected surface).
+  - Token-in-URL detection: flags any request whose query params contain a JWT or long opaque
+    token value — a security issue as tokens in URLs appear in server logs and browser history.
+  - Post-logout token reuse: if a logout endpoint is detected and any subsequent request still
+    carries the auth header, that's flagged as a probable server-side session invalidation bug.
+
+---
+
 ## [1.3.0] — 2026-07-28
 
 ### Added
