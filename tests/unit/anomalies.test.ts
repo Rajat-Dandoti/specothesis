@@ -156,8 +156,7 @@ describe('anomalies — repeated-calls rule', () => {
 describe('anomalies — no-cache-headers rule', () => {
   function makeEntryWithResponseHeaders(
     url: string,
-    responseHeaders: Array<{ name: string; value: string }>,
-    callCount = 2
+    responseHeaders: Array<{ name: string; value: string }>
   ): HarEntry {
     const e = makeEntry({ url });
     e.response.headers = responseHeaders;
