@@ -104,6 +104,40 @@ function buildRules(): Rule[] {
         return `Called ${ep.callCount} times — possible polling or pagination loop`;
       },
     },
+    {
+      id: 'no-cache-headers',
+      severity: 'info',
+      check(ep, epEntries) {
+        if (ep.method.toUpperCase() !== 'GET') return null;
+        if (ep.callCount < 2) return null;
+        const hasCache = epEntries.some((e) =>
+          e.response.headers.some((h) => {
+            const n = h.name.toLowerCase();
+            return n === 'cache-control' || n === 'etag';
+          })
+        );
+        if (hasCache) return null;
+        return `Called ${ep.callCount}× with no Cache-Control or ETag — repeated data transferred`;
+      },
+    },
+    {
+      id: 'etag-unused',
+      severity: 'info',
+      check(_ep, epEntries) {
+        const serverSendsEtag = epEntries.some((e) =>
+          e.response.headers.some((h) => h.name.toLowerCase() === 'etag')
+        );
+        if (!serverSendsEtag) return null;
+        const clientSendsCondition = epEntries.some((e) =>
+          e.request.headers.some((h) => {
+            const n = h.name.toLowerCase();
+            return n === 'if-none-match' || n === 'if-modified-since';
+          })
+        );
+        if (clientSendsCondition) return null;
+        return 'Server sends ETag but client never sends If-None-Match — conditional requests not used';
+      },
+    },
   ];
 }
 

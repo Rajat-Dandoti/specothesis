@@ -4,6 +4,9 @@ import type { CoverageSummary } from './coverage.js';
 import type { Anomaly } from './anomalies.js';
 import type { DriftReport } from './drift.js';
 import type { SchemaManifest } from './schemaManifest.js';
+import type { AuthAuditResult } from './authAudit.js';
+import type { HarEntry } from '../utils/harFilter.js';
+import { generateWaterfall } from './waterfall.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -95,6 +98,46 @@ function buildDriftSection(drift: DriftReport | null): string {
 </section>`;
 }
 
+function buildWaterfallSection(entries: HarEntry[]): string {
+  const svg = generateWaterfall(entries);
+  if (!svg) return '';
+  return `<section>
+  <h2>Request Waterfall</h2>
+  <div class="waterfall">${svg}</div>
+</section>`;
+}
+
+function buildAuthSection(audit: AuthAuditResult): string {
+  const total = audit.withAuth + audit.withoutAuth;
+  const pct = total > 0 ? Math.round((audit.withAuth / total) * 100) : 0;
+
+  const warnings: string[] = [];
+  for (const t of audit.tokenInUrl) {
+    warnings.push(`<tr class="a-warn"><td>token-in-url</td><td>${esc(t.param)}</td><td>${esc(t.url)}</td></tr>`);
+  }
+  if (audit.postLogoutReuse) {
+    warnings.push(`<tr class="a-warn"><td>post-logout-reuse</td><td>—</td><td>Token used after ${esc(audit.logoutUrl ?? 'logout')}</td></tr>`);
+  }
+
+  const warningBlock =
+    warnings.length > 0
+      ? `<table style="margin-top:8px">
+    <thead><tr><th>Finding</th><th>Param / Detail</th><th>URL</th></tr></thead>
+    <tbody>${warnings.join('\n')}</tbody>
+  </table>`
+      : `<p class="none">✓ No auth findings</p>`;
+
+  return `<section>
+  <h2>Auth Token Lifecycle</h2>
+  <div class="stat-row">
+    <div class="stat"><span>${audit.withAuth}</span>With auth</div>
+    <div class="stat"><span>${audit.withoutAuth}</span>Without auth</div>
+    <div class="stat"><span>${pct}%</span>Auth coverage</div>
+  </div>
+  ${warningBlock}
+</section>`;
+}
+
 function buildCoverageSection(summary: CoverageSummary): string {
   const rows = summary.endpoints
     .map((ep) => {
@@ -170,6 +213,11 @@ tr:hover td{background:#111}
 .fail-block{border-top:1px solid #1c1c1c;padding:8px 0;font-size:12px;color:#888}
 .fail-block .a-warn{color:#f44336}
 footer{color:#2a2a2a;font-size:11px;margin-top:32px;border-top:1px solid #1a1a1a;padding-top:8px}
+/* waterfall */
+.waterfall{overflow-x:auto;background:#080808;padding:8px;border-radius:2px}
+/* auth + stat row */
+.stat-row{display:flex;gap:28px;margin-bottom:10px}
+.stat{color:#555;font-size:12px}.stat span{color:#d0d0d0;font-size:14px;display:block}
 `.trim();
 
 // ---------------------------------------------------------------------------
@@ -210,7 +258,9 @@ export function generateHtmlReport(
   summary: CoverageSummary,
   anomalies: Anomaly[],
   drift: DriftReport | null,
-  outDir: string
+  outDir: string,
+  entries: HarEntry[] = [],
+  authAudit: AuthAuditResult | null = null
 ): void {
   const capturedAt = new Date(summary.capturedAt).toLocaleString();
 
@@ -224,6 +274,10 @@ export function generateHtmlReport(
 <body>
 <h1>Specothesis Report — ${esc(summary.sessionName)}</h1>
 <p class="subtitle">Captured ${capturedAt}</p>
+
+${buildWaterfallSection(entries)}
+
+${authAudit ? buildAuthSection(authAudit) : ''}
 
 ${buildAnomalySection(anomalies)}
 

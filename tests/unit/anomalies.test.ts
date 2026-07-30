@@ -153,6 +153,78 @@ describe('anomalies — repeated-calls rule', () => {
   });
 });
 
+describe('anomalies — no-cache-headers rule', () => {
+  function makeEntryWithResponseHeaders(
+    url: string,
+    responseHeaders: Array<{ name: string; value: string }>,
+    callCount = 2
+  ): HarEntry {
+    const e = makeEntry({ url });
+    e.response.headers = responseHeaders;
+    return e;
+  }
+
+  it('fires for GET called 2+ times with no Cache-Control or ETag', () => {
+    const ep = makeEndpoint({ method: 'GET', callCount: 2 });
+    const entry = makeEntryWithResponseHeaders('https://api.example.com/api/v1/items', []);
+    const anomalies = detectAnomalies(makeSummary([ep]), [entry, entry]);
+    expect(anomalies.some((a) => a.rule === 'no-cache-headers')).toBe(true);
+  });
+
+  it('does not fire when Cache-Control is present', () => {
+    const ep = makeEndpoint({ method: 'GET', callCount: 2 });
+    const entry = makeEntryWithResponseHeaders('https://api.example.com/api/v1/items', [
+      { name: 'cache-control', value: 'max-age=3600' },
+    ]);
+    const anomalies = detectAnomalies(makeSummary([ep]), [entry, entry]);
+    expect(anomalies.some((a) => a.rule === 'no-cache-headers')).toBe(false);
+  });
+
+  it('does not fire for POST endpoints', () => {
+    const ep = makeEndpoint({ method: 'POST', callCount: 3 });
+    const entry = makeEntry({ url: 'https://api.example.com/api/v1/items' });
+    entry.request.method = 'POST';
+    const anomalies = detectAnomalies(makeSummary([ep]), [entry, entry, entry]);
+    expect(anomalies.some((a) => a.rule === 'no-cache-headers')).toBe(false);
+  });
+
+  it('does not fire for GET called only once', () => {
+    const ep = makeEndpoint({ method: 'GET', callCount: 1 });
+    const entry = makeEntryWithResponseHeaders('https://api.example.com/api/v1/items', []);
+    const anomalies = detectAnomalies(makeSummary([ep]), [entry]);
+    expect(anomalies.some((a) => a.rule === 'no-cache-headers')).toBe(false);
+  });
+});
+
+describe('anomalies — etag-unused rule', () => {
+  it('fires when server sends ETag but client never sends If-None-Match', () => {
+    const ep = makeEndpoint({ method: 'GET', callCount: 2 });
+    const entry1 = makeEntry({});
+    entry1.response.headers = [{ name: 'etag', value: '"abc123"' }];
+    const entry2 = makeEntry({});
+    entry2.response.headers = [{ name: 'etag', value: '"abc123"' }];
+    const anomalies = detectAnomalies(makeSummary([ep]), [entry1, entry2]);
+    expect(anomalies.some((a) => a.rule === 'etag-unused')).toBe(true);
+  });
+
+  it('does not fire when no ETag in responses', () => {
+    const ep = makeEndpoint({ method: 'GET', callCount: 2 });
+    const entry = makeEntry({});
+    const anomalies = detectAnomalies(makeSummary([ep]), [entry, entry]);
+    expect(anomalies.some((a) => a.rule === 'etag-unused')).toBe(false);
+  });
+
+  it('does not fire when client sends If-None-Match', () => {
+    const ep = makeEndpoint({ method: 'GET', callCount: 2 });
+    const entry1 = makeEntry({});
+    entry1.response.headers = [{ name: 'etag', value: '"abc123"' }];
+    const entry2 = makeEntry({});
+    entry2.request.headers = [{ name: 'if-none-match', value: '"abc123"' }];
+    const anomalies = detectAnomalies(makeSummary([ep]), [entry1, entry2]);
+    expect(anomalies.some((a) => a.rule === 'etag-unused')).toBe(false);
+  });
+});
+
 describe('anomalies — missing-auth + SCANNER_PUBLIC_PATTERNS', () => {
   it('suppresses missing-auth when path matches a custom public pattern', () => {
     // "/api/v1/metrics" contains "metrics" — pass it as publicPatterns
