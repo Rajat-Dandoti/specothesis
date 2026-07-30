@@ -7,6 +7,7 @@ import type { SchemaManifest } from './schemaManifest.js';
 import type { AuthAuditResult } from './authAudit.js';
 import type { HarEntry } from '../utils/harFilter.js';
 import { generateWaterfall } from './waterfall.js';
+import type { CausalGraph } from './causalGraph.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -93,6 +94,52 @@ function buildDriftSection(drift: DriftReport | null): string {
   <h2>API Drift <span class="vs">vs ${esc(drift.baseSession)}</span></h2>
   <table>
     <thead><tr><th></th><th>Endpoint</th><th>Detail</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+</section>`;
+}
+
+function buildCausalSection(graph: CausalGraph): string {
+  if (graph.edges.length === 0) return '';
+
+  // Group edges by source node
+  const bySource = new Map<number, typeof graph.edges>();
+  for (const e of graph.edges) {
+    const list = bySource.get(e.from) ?? [];
+    list.push(e);
+    bySource.set(e.from, list);
+  }
+
+  const rows = [...bySource.entries()]
+    .map(([fromIdx, edges]) => {
+      const src = graph.nodes[fromIdx];
+      return edges
+        .map(
+          (e) =>
+            `<tr>
+      <td><span class="${'m-' + src.method.toLowerCase()}">${esc(src.method)}</span> ${esc(src.path)}</td>
+      <td class="dim">${esc(e.sourceField)}</td>
+      <td class="val">${esc(e.value)}</td>
+      <td><span class="${'m-' + graph.nodes[e.to].method.toLowerCase()}">${esc(graph.nodes[e.to].method)}</span> ${esc(graph.nodes[e.to].path)}</td>
+      <td class="dim">${esc(e.targetLocation)}</td>
+    </tr>`
+        )
+        .join('\n');
+    })
+    .join('\n');
+
+  return `<section>
+  <h2>Causal Data Flow — ${graph.edges.length} link${graph.edges.length !== 1 ? 's' : ''}</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Source endpoint</th>
+        <th>Response field</th>
+        <th>Value</th>
+        <th>Target endpoint</th>
+        <th>Used in</th>
+      </tr>
+    </thead>
     <tbody>${rows}</tbody>
   </table>
 </section>`;
@@ -260,7 +307,8 @@ export function generateHtmlReport(
   drift: DriftReport | null,
   outDir: string,
   entries: HarEntry[] = [],
-  authAudit: AuthAuditResult | null = null
+  authAudit: AuthAuditResult | null = null,
+  causalGraph: CausalGraph | null = null
 ): void {
   const capturedAt = new Date(summary.capturedAt).toLocaleString();
 
@@ -278,6 +326,8 @@ export function generateHtmlReport(
 ${buildWaterfallSection(entries)}
 
 ${authAudit ? buildAuthSection(authAudit) : ''}
+
+${causalGraph ? buildCausalSection(causalGraph) : ''}
 
 ${buildAnomalySection(anomalies)}
 

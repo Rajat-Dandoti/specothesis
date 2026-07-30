@@ -19,6 +19,7 @@ import { detectAnomalies, writeAnomalyReport, printAnomalies } from './report/an
 import { detectDrift, loadPreviousCoverage, writeDriftReport, printDrift } from './report/drift.js';
 import { generateHtmlReport } from './report/htmlReport.js';
 import { buildAuthAudit, writeAuthAudit, printAuthAudit } from './report/authAudit.js';
+import { buildCausalGraph, writeCausalGraph, printCausalGraph } from './report/causalGraph.js';
 
 export interface PipelineOptions {
   apiEntries: HarEntry[];
@@ -92,8 +93,12 @@ export function runPipeline({ apiEntries, har, sessionName, runDir, baseUrl, con
   writeAuthAudit(authAudit, runDir);
   printAuthAudit(authAudit);
 
+  const causalGraph = buildCausalGraph(apiEntries);
+  writeCausalGraph(causalGraph, runDir);
+  printCausalGraph(causalGraph);
+
   if (config.features.htmlReport && coverageSummary) {
-    generateHtmlReport(coverageSummary, anomalies, driftReport, runDir, apiEntries, authAudit);
+    generateHtmlReport(coverageSummary, anomalies, driftReport, runDir, apiEntries, authAudit, causalGraph);
   }
 
   const relDir = path.relative(process.cwd(), runDir);
