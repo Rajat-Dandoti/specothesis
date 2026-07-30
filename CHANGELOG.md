@@ -5,6 +5,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.5.0] — 2026-07-30
+
+### Added
+
+- **Causal data flow graph** — after every session, Specothesis now traces which response values
+  flow into subsequent requests and builds a dependency graph:
+  - Numeric ID fields (keys matching `id`, `key`, `ref`, `token`, etc.) and string IDs (UUID,
+    ObjectId, ULID, NanoID, or any ≥20-char alphanumeric segment) are extracted from each
+    successful response body.
+  - Each value is matched against subsequent request URLs (path segments, query params) and
+    request bodies to detect causal links.
+  - Results are written to **`causal-graph.json`** (`nodes` + `edges` with `sourceField` and
+    `targetLocation`) and shown as a dependency table in `report.html`.
+  - Terminal output lists unique source → target chains at a glance.
+
+---
+
 ## [1.4.0] — 2026-07-30
 
 ### Added
