@@ -54,6 +54,10 @@ export function generateWaterfall(entries: HarEntry[]): string {
   if (rows.length === 0) return '';
 
   const LABEL_W = 270;
+  const LABEL_FONT_SIZE = 11;
+  const CHAR_W = LABEL_FONT_SIZE * 0.6; // approx monospace advance width
+  const LABEL_MARGIN = 14; // left breathing room so text never reaches x=0
+  const MAX_LABEL_CHARS = Math.max(8, Math.floor((LABEL_W - LABEL_MARGIN) / CHAR_W));
   const BAR_W = 480;
   const TOTAL_W = LABEL_W + BAR_W + 90;
   const ROW_H = 20;
@@ -68,11 +72,13 @@ export function generateWaterfall(entries: HarEntry[]): string {
       const w = Math.max(scale(r.durationMs), 2);
       const y = i * ROW_H;
       const color = methodColor(r.method);
-      const label = `${r.method.toUpperCase()} ${r.path}`.slice(0, 44);
+      const fullLabel = `${r.method.toUpperCase()} ${r.path}`;
+      const label =
+        fullLabel.length > MAX_LABEL_CHARS ? `${fullLabel.slice(0, MAX_LABEL_CHARS - 1)}…` : fullLabel;
       const title = `${r.method} ${r.path} — ${Math.round(r.durationMs)}ms (t+${Math.round(r.startOffsetMs)}ms) ${r.status}`;
       const durLabel = r.durationMs >= 1000 ? `${(r.durationMs / 1000).toFixed(1)}s` : `${Math.round(r.durationMs)}ms`;
       return `<g transform="translate(0,${y})">
-  <text x="${LABEL_W - 6}" y="${ROW_H / 2 + 4}" fill="#666" font-size="11" text-anchor="end" font-family="monospace">${esc(label)}</text>
+  <text x="${LABEL_W - 6}" y="${ROW_H / 2 + 4}" fill="#666" font-size="${LABEL_FONT_SIZE}" text-anchor="end" font-family="monospace">${esc(label)}<title>${esc(title)}</title></text>
   <rect x="${LABEL_W + x}" y="${PAD}" width="${w}" height="${ROW_H - PAD * 2}" fill="${color}" rx="1" opacity="0.85">
     <title>${esc(title)}</title>
   </rect>

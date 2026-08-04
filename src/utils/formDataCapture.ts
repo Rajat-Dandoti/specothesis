@@ -146,16 +146,21 @@ export async function collectCapturedFormData(
 ): Promise<CapturedFormEntry[]> {
   const all: CapturedFormEntry[] = [];
 
+  // addInitScript runs in every frame (including iframes), so uploads
+  // initiated from within an iframe carry their own window.__apiScannerFd —
+  // walk every frame of every page, not just each page's main frame.
   for (const page of context.pages()) {
-    try {
-      const raw: unknown = await page.evaluate('window.__apiScannerFd ?? []');
-      const entries = Array.isArray(raw) ? raw as CapturedFormEntry[] : [];
-      all.push(...entries);
-      // Surface any browser-side capture errors back to Node
-      const errs: string[] = await page.evaluate('window.__apiScannerErrors ?? []') as string[];
-      for (const e of errs) console.warn(`  [formdata] WARNING: ${e}`);
-    } catch {
-      // page may have been closed
+    for (const frame of page.frames()) {
+      try {
+        const raw: unknown = await frame.evaluate('window.__apiScannerFd ?? []');
+        const entries = Array.isArray(raw) ? raw as CapturedFormEntry[] : [];
+        all.push(...entries);
+        // Surface any browser-side capture errors back to Node
+        const errs: string[] = await frame.evaluate('window.__apiScannerErrors ?? []') as string[];
+        for (const e of errs) console.warn(`  [formdata] WARNING: ${e}`);
+      } catch {
+        // frame may have been detached/closed
+      }
     }
   }
 

@@ -5,6 +5,31 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.6.0] — 2026-08-04
+
+### Added
+
+- **Redesigned HTML report** — `report.html` is now a sidebar + tab layout:
+  - Light theme with CSS custom properties, replacing the previous dark terminal aesthetic
+  - Fixed sidebar with session name, captured-at timestamp, and at-a-glance overview stats
+    (endpoint count, request count, anomaly count, drift changes, auth coverage %)
+  - Tab navigation — only one section is visible at a time; deep-linkable via URL hash
+  - Responsive: sidebar collapses to a horizontal top bar on narrow screens
+  - Severity stripes on anomaly and drift rows (coloured left border) for faster scanning
+
+### Fixed
+
+- **`formDataCapture`: FormData from iframes was silently dropped** — `collectCapturedFormData`
+  previously read only `page.evaluate()` (the main frame). The injected `addInitScript` runs in
+  every frame, so uploads from embedded iframes had their own `window.__apiScannerFd` that was
+  never read. Fixed by iterating `page.frames()` and collecting from every frame.
+
+- **Waterfall labels**: long endpoint paths were hard-truncated at 44 characters with no
+  indicator. Labels now truncate to the computed column width with a `…` suffix, and the full
+  label is shown as a tooltip on both the text and the bar.
+
+---
+
 ## [1.5.0] — 2026-07-30
 
 ### Added
